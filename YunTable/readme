@@ -1,0 +1,187 @@
+Issue List:
+
+4. remove hot failure node
+5. reseting wal log during runtime
+6. allow user to configure the size of memstore base on the value size
+
+9. 5sec stop
+10. test random allocated size across different regions, whether is unigue
+
+
+//conn issue
+//tabletlist issue
+//master node is maintain N qualified for each table and timestamp, will assign new one if old one is invalidate or less than N 
+//client node will retry the cmd 10 times during 10mins(default value, and can be set), if no good, will invalidate bad region node base on size and connectivity, 
+//if the region node is full, the client will request master stopped the region node, master will set the end timestamp
+for thie region node 
+
+//transfer the replicated yfile between each other, put file
+//testcase
+put file
+//get tablet size
+//start sync may have some contention
+
+//TODO check the effectiveness cmp_region_info sort region info
+public boolean create_new_table_master has not been used
+
+1. confTest
+2. testCase
+malloc consolidate
+open source
+
+1. creating a new table and put begin timestamp, end timestamp
+2. 
+
+master  
+
+// below are not important since the console just used for testing 
+-14. standlize return status
+-8. free integer at threadidlist
+11. if the region not started, master will crash if create table
+14. handle connect_conn return NULL
+
+14. list get needs to add some critical section
+18. batch_put_data_to_table send too much times
+19. two region mode
+
+1. 5sec
+2. two region mode
+3. failer over case
+
+
+add byte buffer 
+
+
+//Client will retrieve the table info every 10mins
+//Scenario 1. creating a table or column family
+//Scenario 2. refresh, update working status, avail_space
+//Scenario 3. client can not connect, it will disable the region and init a thread to send update_table_info_now and
+//invalidate_conn to master, and return new table info
+//Scenario 4. found full node during master loop, which assign a new region node at the replica, no need to worry loss data
+//Scenario 5. found the invalidate node, client will put data,
+//sync method begin timestamp end timestamp
+
+//predict the tablet size 
+
+1. refresh region info list, if it is not connecting or full
+2. if it is not connecting or full, it will assign new tablet to copy the content, if the old tablet is currently serving, 
+will add additional tablet for serving, 
+3. 
+4. 
+
+//Client add retry
+//region store the syncjob info during execution
+//The contention between update_region_info and check_node_validity
+
+
+tableInfoList=people
+people.default_cf.0=127.0.0.1:8302,120000,12000;127.0.0.1:8303,120000,12000
+people.default_cf.1=127.0.0.1:8302,120000,12000;127.0.0.1:8303,120000,12000
+regionList=127.0.0.1:8302,127.0.0.1:8303
+
+client
+region sync
+handle failure
+
+distriuted
+
+have one interface for get all keys, which a key array at memstore and a option loading keys from yfile 
+another interface begin_index end_index
+
+clean memstore and wal
+
+1. 64bit support, long, int, size_t usage.
+
+10. handle GC, whether the buf should copy the data first
+
+20. the cluster is full
+
+The request is cmd:available_space_region.
+The result of this request is:1216542492
+
+1. need to enlarge the buf size, buf size issue
+
+3. put data at which tablet
+
+6. short testcase
+7. long testcase
+
+5. gc
+
+1. multi thread timeout,test timeout not reach
+2. Test, and fix conn gc bug, safe_malloc
+3. master
+
+
+1. read the code
+5. make gc plan, and code conduct
+
+1. Test Region Part
+3. fault-tolerant
+
+
+cli.conf sample
+master=127.0.0.1:8301
+people.default_cf=127.0.0.1:8302/tablet0,127.0.0.1:8302/tablet1
+people.address=127.0.0.1:8302/tablet0,127.0.0.1:8302/tablet1
+people.regions=127.0.0.1:8302
+people.columnFamilys=default_cf,address
+tableInfoList=people
+
+master.conf sample
+port=8301
+regionList=172.0.0.1:8302
+people.regions=127.0.0.1:8302
+tableInfoList=people
+
+region.conf sample
+port=8302
+max-size=10000
+
+
+4. short test case
+5. long test case
+
+
+Short Test Case:
+make
+make clean
+./yuntable
+1. add column_family:address
+2. put row:me name:ike sex:male address.homeaddress:sh
+3. get all
+4. quit
+
+
+Long Test Case:
+1) begin part
+make
+make clean
+./yuntable
+1. get all
+
+2) add part
+1. add column_family:address
+2. add column_family:address
+3.  add  column_family:address2 
+
+3) put part
+1. put row:me name:ike sex:male address.homeaddress:sh
+2. put row:m22 name:zhu sex:male address.homeaddress:sh address2.workaddress:bj
+3. put row:m1 name:wu sex:male address.homeaddress:sh
+4. put row:m3 name:hua sex:male address3.playaddress:sh
+5. put row:me name:wu sex:female address.homeaddress:bj
+
+4) test log part
+1. quit
+./yuntable
+
+5) get part
+1. get all
+2. get row:me
+3. get row:wrong
+4. quit
+
+The Total size of allocated memory:13078
+The Total size of used memory:12751
+The Total size of free memory:327
