@@ -58,7 +58,7 @@ public void append_memstore(Memstore *memstore, Item *item){
 	memstore->items[memstore->used_size] = item;
 	memstore->used_size++;
 	//update the memstore's timestamp]
-	int timestamp = get_timestamp(item);
+	long long timestamp = get_timestamp(item);
 	if(memstore->begin_timestamp == 0 || timestamp < memstore->begin_timestamp )
 		memstore->begin_timestamp = timestamp;
 	if(memstore->end_timestamp == 0 || timestamp > memstore->end_timestamp)

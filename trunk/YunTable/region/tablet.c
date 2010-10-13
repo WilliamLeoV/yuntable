@@ -24,8 +24,8 @@ struct _Tablet{
 	Memstore *memstore;
 	List *yfileList;
 	int used_size; /**the size will preallocted the max size for wal log, such as 64MB**/
-	long last_flushed_id; /** the it of last item has been flushed to yfile **/
-	long max_item_id; /** current max item id in the tablet and memstore **/
+	long long last_flushed_id; /** the it of last item has been flushed to yfile **/
+	long long max_item_id; /** current max item id in the tablet and memstore **/
 	int begin_timestamp;
 	int end_timestamp;
 	pthread_mutex_t flushing_mutex;

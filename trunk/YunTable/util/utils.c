@@ -82,15 +82,22 @@ public void* buf_load(Buf* buf, int size){
 	return dest;
 }
 
-public int buf_load_int(Buf* buf, int size){
-	void* string = buf_load(buf, size);
+public int buf_load_int(Buf* buf){
+	void* string = buf_load(buf, sizeof(int));
 	int integer = btoi(string);
 	free(string);
 	return integer;
 }
 
-public short buf_load_short(Buf* buf, int size){
-	void* string = buf_load(buf, size);
+public long long buf_load_long_long(Buf* buf){
+	void* string = buf_load(buf, sizeof(long long));
+	long long longlong = btoll(string);
+	free(string);
+	return longlong;
+}
+
+public short buf_load_short(Buf* buf){
+	void* string = buf_load(buf, sizeof(short));
 	short short_int = btos(string);
 	free(string);
 	return short_int;
@@ -206,10 +213,10 @@ public char* m_itos(int num){
 	return str;
 }
 
-/** long to string **/
-public char* m_ltos(long num){
+/** long long to string **/
+public char* m_lltos(long long num){
 	char *str = calloc(1, 50);
-	sprintf(str, "%ld", num);
+	sprintf(str, "%lld", num);
 	return str;
 }
 
@@ -230,6 +237,11 @@ public boolean stob(char* bool_str){
 /** byte to integer **/
 public int btoi(byte *b){
 	return *((int *)b);
+}
+
+/** byte to long long **/
+public long long btoll(byte *b){
+	return *((long long *)b);
 }
 
 /** byte to short **/
@@ -475,7 +487,7 @@ public long long get_current_time_mills(){
 void test_long_to_string(void){
 	char* string = "123456";
 	long value = strtol(string, NULL, 10);
-	char* result = m_ltos(value);
+	char* result = m_lltos(value);
 	assert(match(string, result));
 }
 
