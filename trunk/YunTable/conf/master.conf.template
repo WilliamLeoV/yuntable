@@ -1,3 +1,2 @@
 port=8301
 duplicate_num=1
-regionList=127.0.0.1:8302
