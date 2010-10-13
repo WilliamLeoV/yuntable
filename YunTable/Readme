@@ -30,7 +30,7 @@ sh build.sh
 ./startRegion (Run in another console)
 ./yuncli (Run in another console)
 
-YunTable Cli Part(under the yuncli):
+YunTable Cli Part(Type and Run at the yuncli):
 add master:127.0.0.1:8301
 add region:127.0.0.1:8302
 add table:people
