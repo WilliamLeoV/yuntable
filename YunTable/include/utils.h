@@ -27,9 +27,11 @@ public void buf_combine(Buf* dest_buf, Buf* src_buf);
 
 public void* buf_load(Buf* buf, int size);
 
-public int buf_load_int(Buf* buf, int size);
+public int buf_load_int(Buf* buf);
 
-public short buf_load_short(Buf* buf, int size);
+public long long buf_load_long_long(Buf* buf);
+
+public short buf_load_short(Buf* buf);
 
 public void destory_buf(Buf* buf);
 
@@ -65,17 +67,20 @@ public char* m_concat_strings(int begin_index, int end_index, char *strings[]);
 /** integer to string **/
 public char* m_itos(int num);
 
+public long long btoll(byte *b);
+
+public int btoi(byte *b);
+
+public short btos(byte *b);
+
 /** long to string **/
-public char* m_ltos(long num);
+public char* m_lltos(long long num);
 
 /** char to string **/
 public char* m_ctos(char chr);
 
 /** string to boolean **/
 public boolean stob(char* bool_str);
-
-/** byte to integer **/
-public int btoi(byte *b);
 
 /** byte to short **/
 public short btos(byte *b);

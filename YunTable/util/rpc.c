@@ -106,9 +106,9 @@ public Buf* params_to_byte(List* params){
 /** this transformation will remove size for each item, so the total length will 1/2 **/
 public List* byte_to_params(Buf* buf){
 	List* list = list_create();
-	int i=0, list_size = buf_load_int(buf, sizeof(int));
+	int i=0, list_size = buf_load_int(buf);
 	for(i=0; i<list_size; i++){
-		int item_size = buf_load_int(buf, sizeof(int));
+		int item_size = buf_load_int(buf);
 		void *data = buf_load(buf, item_size);
 		list_append(list, data);
 	}
@@ -149,7 +149,7 @@ private RPCRequest* byte_to_rpc_request(byte* bytes){
 	char* magic_string = buf_load(buf, sizeof(rpcRequest->magic));
 	cpy(rpcRequest->magic, magic_string);
 	free(magic_string);
-	rpcRequest->cmd_length = buf_load_int(buf, sizeof(rpcRequest->cmd_length));
+	rpcRequest->cmd_length = buf_load_int(buf);
 	rpcRequest->cmd_name = (char*)buf_load(buf, rpcRequest->cmd_length);
 	rpcRequest->params = byte_to_params(buf);
 	free_buf(buf);
@@ -182,8 +182,8 @@ private RPCResponse* byte_to_rpc_response(byte* bytes){
 	char* magic_string = buf_load(buf, sizeof(rpcResponse->magic));
 	cpy(rpcResponse->magic, magic_string);
 	free(magic_string);
-	rpcResponse->status =  buf_load_int(buf, sizeof(rpcResponse->status));
-	rpcResponse->result_length = buf_load_int(buf, sizeof(rpcResponse->result_length));
+	rpcResponse->status =  buf_load_int(buf);
+	rpcResponse->result_length = buf_load_int(buf);
 	rpcResponse->result = buf_load(buf, rpcResponse->result_length);
 	free_buf(buf);
 	return rpcResponse;

@@ -94,18 +94,18 @@ public char* get_row_key(Item *item){
 	return item->key->row_key;
 }
 
-public int get_timestamp(Item *item){
+public long long get_timestamp(Item *item){
 	return item->key->timestamp;
 }
 
 /* find the two sets timestamp has some shared space */
-public boolean match_by_timestamps(int src_begin_timestamp, int src_end_timestamp,
-		int dest_begin_timestamp, int dest_end_timestamp){
+public boolean match_by_timestamps(long long src_begin_timestamp, long long src_end_timestamp,
+		long long dest_begin_timestamp, long long dest_end_timestamp){
 	if(src_begin_timestamp > dest_end_timestamp || src_end_timestamp < dest_begin_timestamp) return false;
 	else return true;
 }
 
-public boolean between_timestamps(int timestamp, int begin_timestamp, int end_timestamp){
+public boolean between_timestamps(long long timestamp, long long begin_timestamp, long long end_timestamp){
 	if(timestamp >= begin_timestamp || timestamp <= end_timestamp) return true;
 	else return false;
 }
@@ -165,20 +165,20 @@ public Buf* result_set_to_byte(ResultSet* resultSet){
 
 private Key* byte_to_key(Buf* buf){
 	Key *key = malloc(sizeof(Key));
-	key->row_key_len = buf_load_short(buf, sizeof(key->row_key_len));
+	key->row_key_len = buf_load_short(buf);
 	key->row_key = buf_load(buf, key->row_key_len);
-	key->column_family_len = buf_load_short(buf, sizeof(key->column_family_len));
+	key->column_family_len = buf_load_short(buf);
 	key->column_family = buf_load(buf, key->column_family_len);
-	key->column_qualifer_len = buf_load_short(buf, sizeof(key->column_qualifer_len));
+	key->column_qualifer_len = buf_load_short(buf);
 	key->column_qualifer = buf_load(buf, key->column_qualifer_len);
-	key->timestamp = buf_load_int(buf, sizeof(key->timestamp));
+	key->timestamp = buf_load_long_long(buf);
 	return key;
 }
 
 private Item* byte_to_item(Buf* buf){
 	Item *item = malloc(sizeof(Item));
 	item->key = byte_to_key(buf);
-	item->val_len = buf_load_int(buf, sizeof(item->val_len));
+	item->val_len = buf_load_int(buf);
 	item->value = buf_load(buf, item->val_len);
 	return item;
 }
@@ -189,7 +189,7 @@ public ResultSet* byte_to_result_set(byte* bytes){
 	char* magic_string = buf_load(buf, sizeof(resultSet->magic));
 	cpy(resultSet->magic, magic_string);
 	free(magic_string);
-	resultSet->size = buf_load_int(buf, sizeof(resultSet->size));
+	resultSet->size = buf_load_int(buf);
 	resultSet->items = malloc(sizeof(Item *) * resultSet->size);
 	int i=0;
 	for(i=0; i<resultSet->size; i++){

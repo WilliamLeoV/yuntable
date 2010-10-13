@@ -90,7 +90,7 @@ private void flush_tablets_info(char* file_path, List* tabletList){
 	Tablet* tablet = NULL;
 	while((tablet = list_next(tabletList)) != NULL){
 		char* key = m_cats(3, get_tablet_folder(tablet), MID_SEPARATOR_STRING ,LAST_FLUSHED_ID_KEY);
-		char* value = m_ltos(get_last_flushed_id(tablet));
+		char* value = m_lltos(get_last_flushed_id(tablet));
 		flush_key_value(file_path, key, value);
 
 		free(key);
@@ -290,7 +290,7 @@ public Buf* handler_region_request(char *cmd, List* params){
 		char* row_key = get_param(params, 2);
 		ResultSet* resultSet = query_row_region(table_name, column_family,  row_key);
 		ret =  result_set_to_byte(resultSet);
-		destory_result_set(resultSet);
+		free_result_set(resultSet);
 	}else if(match(AVAILABLE_SPACE_REGION_CMD, cmd)){
 		int avail_space = available_space_region();
 		char* result = m_itos(avail_space);

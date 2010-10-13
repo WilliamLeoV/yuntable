@@ -39,16 +39,16 @@ public char* get_column_family(Item *item);
 
 public char* get_column_qualifier(Item *item);
 
-public int get_timestamp(Item *item);
+public long long get_timestamp(Item *item);
 
 public char* get_value(Item *item);
 
 public char* get_row_key(Item *item);
 
-public boolean match_by_timestamps(int src_begin_timestamp, int src_end_timestamp,
-		int dest_begin_timestamp, int dest_end_timestamp);
+public boolean match_by_timestamps(long long src_begin_timestamp, long long src_end_timestamp,
+		long long dest_begin_timestamp, long long dest_end_timestamp);
 
-public boolean between_timestamps(int timestamp, int begin_timestamp, int end_timestamp);
+public boolean between_timestamps(long long timestamp, long long begin_timestamp, long long end_timestamp);
 
 public void flush_key(Key* key, FILE *fp);
 

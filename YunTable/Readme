@@ -21,16 +21,17 @@
 YunTable is a BigTable clone that written in C, and it will be further optimized base on
 Cloud Computing needs.
 
-Below are the tutorial for YunTable:
+Below are the tutorial for YunTable(Only tested at Ubuntu 10.04):
 
 
 Shell Part(under the project root):
 sh build.sh
 ./startMaster
-./startRegion
-./YunCli
+./startRegion (Run in another console)
+./yuncli (Run in another console)
 
-YunTable Cli Part(under the YunCli):
+YunTable Cli Part(under the yuncli):
+add master:127.0.0.1:8301
 add region:127.0.0.1:8302
 add table:people
 add table:people column_family:address
@@ -38,3 +39,4 @@ put table:people row:me name:"ike" sex:"male" address.homeaddress:"sh"
 get table:people row:me
 put table:people row:me1 name:"ike1" sex:"male1" address.homeaddress:"sh1"
 get table:people row:me1
+quit
