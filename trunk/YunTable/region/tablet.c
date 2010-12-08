@@ -26,8 +26,8 @@ struct _Tablet{
 	int used_size; /**the size will preallocted the max size for wal log, such as 64MB**/
 	long long last_flushed_id; /** the it of last item has been flushed to yfile **/
 	long long max_item_id; /** current max item id in the tablet and memstore **/
-	int begin_timestamp;
-	int end_timestamp;
+	//int begin_timestamp;
+	//int end_timestamp; currently blocked since it's no use now
 	pthread_mutex_t flushing_mutex;
 };
 
@@ -61,8 +61,6 @@ private Tablet* init_tablet_struct(char *tablet_folder){
 	tablet->used_size = 0;
 	tablet->last_flushed_id = 0;
 	tablet->max_item_id = 0;
-	tablet->begin_timestamp = 0;
-	tablet->end_timestamp = 0;
 	pthread_mutex_init(&tablet->flushing_mutex, NULL);
 	return tablet;
 }
@@ -181,6 +179,20 @@ public  ResultSet* query_tablet_by_timestamp(Tablet *tablet, int begin_timestamp
 	free(yfileSet);
 	return combinedSet;
 }
+
+public ResultSet* query_tablet_all(Tablet *tablet){
+	 //get all items from memstore
+	 ResultSet* memstoreSet = get_all_items_memstore(tablet->memstore);
+	 //get all items from yfile
+	 ResultSet* yfileSet = query_yfiles_by_timestamp(tablet->yfileList, 0, time(0));
+
+	 ResultSet* combinedSet = m_combine_result_set(memstoreSet, yfileSet);
+
+	 free(memstoreSet);
+	 free(yfileSet);
+	 return combinedSet;
+}
+
 
 private char* get_next_yfile_path(Tablet *tablet){
 	int count = list_size(tablet->yfileList);
