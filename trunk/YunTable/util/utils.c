@@ -55,9 +55,8 @@ public Buf* create_buf(int index, byte* data){
 public void buf_cat(Buf *buf, void* src, int size){
 	enlarge_buf(buf, size);
 	void* tmp_dest = buf->data;
-	int dest_begin_index = buf->index;
 	//locate the dest begin index
-	while(dest_begin_index--!=0) tmp_dest++;
+	tmp_dest+=buf->index;
 	memcpy(tmp_dest, src, size);
 	buf->index += size;
 }
