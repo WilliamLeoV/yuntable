@@ -35,6 +35,8 @@ public ResultSet* query_tablet_row_key(Tablet *tablet, char* row_key);
 
 public  ResultSet* query_tablet_by_timestamp(Tablet *tablet, int begin_timestamp, int end_timestamp);
 
+public ResultSet* query_tablet_all(Tablet *tablet);
+
 public boolean need_to_flush_tablet(Tablet *tablet);
 
 public void flush_tablet(Tablet *tablet);
