@@ -15,13 +15,17 @@ public char* get_column_familys(char *table_name);
 
 public boolean add_new_tablet_region(char *table_name, char* column_famliy);
 
-#define PUT_DATA_REGION_CMD "put_data_tablet"
+#define PUT_DATA_REGION_CMD "put_data_region"
 
 public boolean put_data_region(char *table_name, char* column_family, ResultSet* resultSet);
 
 #define QUERY_ROW_REGION_CMD "query_row_region"
 
 public ResultSet* query_row_region(char* table_name, char* column_family, char* row_key);
+
+#define QUERY_ALL_REGION_CMD "query_all_region"
+
+public ResultSet* query_all_region(char* table_name, char* column_family);
 
 #define AVAILABLE_SPACE_REGION_CMD "available_space_region"
 

@@ -259,8 +259,8 @@ public char* put(Tokens* space_tokens){
 	return msg;
 }
 
-
-private ResultSet* query_row_key(CliCache *cliCache, TableInfo* tableInfo, char *row_key){
+/* if row_key == NULL, will return all the data belong to the table */
+private ResultSet* query_table(CliCache *cliCache, TableInfo* tableInfo, char *row_key){
 	ResultSet *resultSet = m_create_result_set(0, NULL);
 	//the list for temporary stored the connParams, which will be further freed
 	List* connParams = list_create();
@@ -273,9 +273,19 @@ private ResultSet* query_row_key(CliCache *cliCache, TableInfo* tableInfo, char 
 			int k=0, tt_size=list_size(replicaQueue->tabletInfoList);
 			for(k=0; k<tt_size; k++){
 				TabletInfo* tabletInfo = list_get(replicaQueue->tabletInfoList, k);
-				List* params = generate_charactor_params(3, tableInfo->table_name,
+				List* params = NULL;
+				ConnParam* connParam = NULL;
+				if(row_key != NULL){
+					params = generate_charactor_params(3, tableInfo->table_name,
 						columnFamilyInfo->column_family, row_key);
-				ConnParam* connParam = create_conn_param(tabletInfo->regionInfo->conn, QUERY_ROW_REGION_CMD, params);
+					connParam = create_conn_param(tabletInfo->regionInfo->conn,
+							QUERY_ROW_REGION_CMD, params);
+				}else{
+					params = generate_charactor_params(2, tableInfo->table_name,
+							columnFamilyInfo->column_family);
+					connParam = create_conn_param(tabletInfo->regionInfo->conn,
+							QUERY_ALL_REGION_CMD, params);
+				}
 				pthread_t tid;
 				pthread_create(&tid, NULL, connect_thread, (void*)connParam);
 				list_append(cliCache->threadIdList, (void*)tid);
@@ -326,23 +336,27 @@ public char* get(Tokens* space_tokens){
 	char *msg = EMPTY_STRING;
 	TableInfo *tableInfo = search_table_info(cliCacheInst, table_name);
 	//if space tokens's size == 2, means will go to cmd 2
+	ResultSet* resultSet = NULL;
 	if(space_tokens->size == 2){
 		get_all(tableInfo);
+		resultSet = query_table(cliCacheInst, tableInfo, NULL);
 	}else{
 		Tokens *fenn_tokens = init_tokens(space_tokens->tokens[2],':');
 		if(!match(fenn_tokens->tokens[0], ROW_KEY))
 				return ERR_MSG_NO_ROW_KEY;
 		char *row_key = m_cpy(fenn_tokens->tokens[1]);
-		ResultSet* resultSet = query_row_key(cliCacheInst, tableInfo, row_key);
-		remove_legacy_items(resultSet);
-		if(resultSet->size == 0){
-			msg = ISSUE_MSG_NOTHING_FOUND;
-		}else {
-			print_result_set_in_nice_format(resultSet);
-		}
-		destory_result_set(resultSet);
+		resultSet = query_table(cliCacheInst, tableInfo, row_key);
 		free_tokens(fenn_tokens);
 	}
+	remove_legacy_items(resultSet);
+	if(resultSet->size == 0){
+		msg = ISSUE_MSG_NOTHING_FOUND;
+	}else {
+		print_result_set_in_nice_format(resultSet);
+	}
+	destory_result_set(resultSet);
+
+
 	return msg;
 }
 
@@ -378,8 +392,9 @@ private char* help(){
 	char *line5 = "3) add table:people column_family:address\n";
 	char *line6 = "4) put table:people row:me name:\"ike\" sex:\"male\" address.homeaddress:\"sh\"\n";
 	char *line7 = "5) get table:people row:me\n";
-	char *line8 = "6) quit\n";
-	char *help = m_cats(9, line0, line1, line2, line3, line4, line5, line6, line7, line8);
+	char *line8 = "6) get table:people\n";
+	char *line9 = "7) quit\n";
+	char *help = m_cats(9, line0, line1, line2, line3, line4, line5, line6, line7, line8, line9);
 	return help;
 }
 

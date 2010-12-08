@@ -205,6 +205,17 @@ public ResultSet* query_row_region(char* table_name, char* column_family, char* 
 	return resultSet;
 }
 
+public ResultSet* query_all_region(char* table_name, char* column_family){
+	ResultSet* resultSet = NULL;
+	Tablet *tablet = get_tablet(regionInst->tabletList, table_name, column_family);
+	if(tablet == NULL){
+		resultSet = m_create_result_set(0, NULL);
+	}else{
+		resultSet = query_tablet_all(tablet);
+	}
+	return resultSet;
+}
+
 void* sync_job(void* syncJob_void){
 	SyncJob* syncJob = (SyncJob*)syncJob_void;
 	Tablet* tablet = get_tablet(regionInst->tabletList, syncJob->table_name, syncJob->column_family);
@@ -289,6 +300,12 @@ public Buf* handler_region_request(char *cmd, List* params){
 		char* column_family = get_param(params, 1);
 		char* row_key = get_param(params, 2);
 		ResultSet* resultSet = query_row_region(table_name, column_family,  row_key);
+		ret =  result_set_to_byte(resultSet);
+		free_result_set(resultSet);
+	}else if(match(QUERY_ALL_REGION_CMD, cmd)){
+		char* table_name = get_param(params, 0);
+		char* column_family = get_param(params, 1);
+		ResultSet* resultSet = query_all_region(table_name, column_family);
 		ret =  result_set_to_byte(resultSet);
 		free_result_set(resultSet);
 	}else if(match(AVAILABLE_SPACE_REGION_CMD, cmd)){
