@@ -48,7 +48,7 @@ public boolean memstore_full(Memstore* memstore){
 
 private Memstore* enlarge_memstore(Memstore *memstore){
 	int target_size = memstore->allocated_size + ONE_ALLOCATED_SIZE;
-	memstore->items = realloc(memstore, target_size);
+	memstore->items = realloc(memstore->items, target_size * sizeof(Item *));
 	memstore->allocated_size = target_size;
 	return memstore;
 }
