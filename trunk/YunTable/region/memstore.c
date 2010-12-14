@@ -110,6 +110,7 @@ public ResultSet* query_memstore_by_row_key(Memstore* memstore, char* row_key){
 	ResultSet* combined_set = m_combine_result_set(set1, set2);
 	free(set1);
 	free(set2);
+
 	return combined_set;
 }
 
