@@ -77,7 +77,7 @@ public void append_memstore(Memstore *memstore, Item *item){
         }
         memstore->items[memstore->used_size] = item;
         memstore->used_size++;
-        //update the memstore's timestamp]
+        //update the memstore's timestamp
         long long timestamp = get_timestamp(item);
         if(memstore->begin_timestamp == 0 || timestamp < memstore->begin_timestamp )
                 memstore->begin_timestamp = timestamp;
@@ -94,7 +94,8 @@ public Memstore* reset_memstore(Memstore *memstore, int flushed_size){
         //check if have new added items has been flushed
         List* new_added_item_list = list_create();
         if (!new_added_item_list) {
-            return NULL; /* XXX What should we do ?? return NULL or original memstore */
+            return NULL;
+            //TODO link this situation to a exception handler
         }
         int i = 0;
         if(memstore->used_size > flushed_size){
@@ -117,7 +118,7 @@ public Memstore* reset_memstore(Memstore *memstore, int flushed_size){
 }
 
 private ResultSet* query_unsorted_part(Memstore* memstore, char* row_key){
-        /* XXX该函数没有释放itemList，调用函数也没有释放 */
+        //TODO free the item list
         List *itemList = list_create();
         if (!itemList) {
             return NULL;
