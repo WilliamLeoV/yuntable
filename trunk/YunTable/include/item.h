@@ -10,9 +10,9 @@ typedef struct _Key Key;
 typedef struct _Item Item;
 
 typedef struct _ResultSet{
-	byte magic[8];
-	int size;
-	Item **items;
+        byte magic[8];
+        int size;
+        Item **items;
 }ResultSet;
 
 /* The binary format of ResultSet:
@@ -46,7 +46,7 @@ public char* get_value(Item *item);
 public char* get_row_key(Item *item);
 
 public boolean match_by_timestamps(long long src_begin_timestamp, long long src_end_timestamp,
-		long long dest_begin_timestamp, long long dest_end_timestamp);
+                long long dest_begin_timestamp, long long dest_end_timestamp);
 
 public boolean between_timestamps(long long timestamp, long long begin_timestamp, long long end_timestamp);
 
@@ -73,11 +73,11 @@ public Key* get_last_key(ResultSet* resultSet);
 
 public Key* get_first_key(ResultSet* resultSet);
 
-public int cmp_item(void* key1, void* key2);
+public int cmp_item(const void* item1_void, const void* item2_void);
 
-public int cmp_key_with_row_key(Key *key, char* row_key);
+public int cmp_key_with_row_key(const Key *key, const char* row_key);
 
-public int cmp_item_with_row_key(Item *item, char* row_key);
+public int cmp_item_with_row_key(const Item *item, const char* row_key);
 
 public boolean between_keys(Key *firstKey, Key *lastKey, char *row_key);
 
