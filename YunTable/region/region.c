@@ -14,7 +14,6 @@
 
 #define DEFAULT_WAL_FILE_PATH "wal.log"
 
-#define CONF_REGION_MAX_SIZE_KEY "max-size"
 #define REGION_FOLDER "."
 #define LAST_FLUSHED_ID_KEY "last_flushed_id"
 #define TIME_STAMP_DIV 60 * 60
@@ -91,7 +90,6 @@ private Region* init_region_struct(char *conf_path){
 		//init the local region
 		Region* region = malloc2(sizeof(Region));
 		region->port = DEFAULT_LOCAL_REGION_PORT;
-		region->max_size = DEFAULT_REGION_MAX_SIZE;
 		region->used_size = 0;
 		region->tabletList = list_create();
 		region->incr_item_id = 0;
@@ -99,8 +97,6 @@ private Region* init_region_struct(char *conf_path){
 
 		int port = get_int_value_by_key(conf_path, CONF_PORT_KEY);
 		if(port != 0) region->port = port;
-		int max_size = get_int_value_by_key(conf_path, CONF_REGION_MAX_SIZE_KEY);
-		if(max_size != 0) region->max_size = max_size;
 
 		return region;
 }
@@ -157,7 +153,7 @@ public void load_local_region(char *conf_path){
 }
 
 public int available_space_region(void){
-		return regionInst->max_size - regionInst->used_size;
+		return get_local_partition_free_space();
 }
 
 public boolean add_new_tablet_region(char *table_name){
@@ -252,7 +248,7 @@ public int tablet_used_size_region(char* table_name){
 		return used_size;
 }
 
-public boolean start_sync_region(char* target_conn, char* table_name, int begin_timestamp, int end_timestamp){
+public boolean start_sync_region(char* target_conn, char* table_name, long long begin_timestamp, long long end_timestamp){
 		logg(INFO, "The new sync job for %s is starting.", target_conn);
 		SyncJob* syncJob = create_sync_job(target_conn, table_name, begin_timestamp, end_timestamp);
 		pthread_t thread_id;
@@ -318,11 +314,11 @@ public RPCResponse* handler_region_request(char *cmd, List* params){
 			int used_size = tablet_used_size_region(table_name);
 			char* string = m_itos(used_size);
 			rpcResponse = create_rpc_response(SUCCESS, strlen(string), string);
-		}else if(match(TABLET_USED_SIZE_REGION_CMD, cmd)){
+		}else if(match(START_SYNC_REGION_CMD, cmd)){
 			char* target_conn = get_param(params, 0);
 			char* table_name = get_param(params, 1);
-			int begin_timestamp = get_param_int(params, 2);
-			int end_timestamp = get_param_int(params, 3);
+			long long begin_timestamp = get_param_int(params, 2);
+			long long end_timestamp = get_param_int(params, 3);
 			boolean bool =  start_sync_region(target_conn, table_name, begin_timestamp, end_timestamp);
 			rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
 		}else if(match(GET_ROLE_CMD, cmd)){
