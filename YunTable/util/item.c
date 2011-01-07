@@ -148,10 +148,10 @@ public Buf* result_set_to_byte(ResultSet* resultSet){
         buf_cat(buf, &resultSet->size, sizeof(resultSet->size));
         int i=0;
         for(i=0; i<resultSet->size; i++){
-                Buf* item_buf = item_to_byte(resultSet->items[i]);
-                buf_combine(buf, item_buf);
+			Buf* item_buf = item_to_byte(resultSet->items[i]);
+			buf_combine(buf, item_buf);
 
-                destory_buf(item_buf);
+			destory_buf(item_buf);
         }
         return buf;
 }
@@ -315,9 +315,8 @@ public void print_result_set_in_nice_format(ResultSet* resultSet){
 		int i=0;
 		for(i=0; i<resultSet->size; i++){
 			Item *item = resultSet->items[i];
-			printf("%s:%s ", get_column_name(item), get_value(item));
+			printf("%s:%s timstamp:%lld\n", get_column_name(item), get_value(item), get_timestamp(item));
 		}
-		printf("\n");
 }
 
 public ResultSet* m_combine_result_set(ResultSet* set0, ResultSet* set1){
