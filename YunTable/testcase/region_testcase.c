@@ -1,10 +1,10 @@
-#include "global.h"
 #include "utils.h"
 #include "item.h"
 #include "list.h"
 #include "region.h"
-#include "conn.h"
+#include "rpc.h"
 #include "conf.h"
+#include "malloc2.h"
 
 void test_suite(void){
 	printf("The testsuit for region\n");
@@ -15,14 +15,14 @@ void test_suite(void){
 	char* result1 = connect_conn(region_conn, ADD_NEW_TABLET_REGION_CMD, params1);
 	boolean bool1 = stob(result1);
 	printf("The result for add new tablet:%s\n", bool_to_str(bool1));
-	free(result1);
+	free2(result1);
 
 	char* column_family2 = m_cpy("address");
 	List* params2 = generate_charactor_params(2, table_name, column_family2);
 	char* result2 = connect_conn(region_conn, ADD_NEW_TABLET_REGION_CMD, params2);
 	boolean bool2 = stob(result2);
 	printf("The result for add new tablet:%s\n", bool_to_str(bool2));
-	free(result1);
+	free2(result2);
 
 	List* params3 = generate_charactor_params(1, table_name);
 	char* column_family_list_string = connect_conn(region_conn, GET_COLUMN_FAMILYS_CMD, params3);
@@ -31,7 +31,7 @@ void test_suite(void){
 	char* avail_space_string =connect_conn(region_conn, AVAILABLE_SPACE_REGION_CMD, NULL);
 	printf("avail_space_string:%s\n", avail_space_string);
 
-	Item** items = malloc(sizeof(Item *) * 1);
+	Item** items = malloc2(sizeof(Item *) * 1);
 	items[0] = m_create_item("1","2","3","4");
 	Buf* buf = result_set_to_byte(m_create_result_set(1, items));
 	add_param(params1, get_buf_index(buf), get_buf_data(buf));

@@ -1,10 +1,10 @@
-#include "global.h"
 #include "utils.h"
 #include "item.h"
 #include "list.h"
 #include "master.h"
-#include "conn.h"
+#include "rpc.h"
 #include "conf.h"
+#include "malloc2.h"
 
 void testsuite(void){
 	printf("The testcase rpc for master\n");
