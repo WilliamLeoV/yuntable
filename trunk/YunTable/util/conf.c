@@ -1,6 +1,14 @@
-#include "global.h"
 #include "utils.h"
 #include "conf.h"
+#include "malloc2.h"
+#include "buf.h"
+#include "log.h"
+
+/***
+ * The conf file is serving two purposes at yuntable
+ * 1) let user input some important configuration, such port number, max disk usage and etc.
+ * 2) let user persist some important data, such as table info list, region list and etc.
+ */
 
 /** the output: key = value **/
 public char* key_and_value_to_line(char* key, char* value){
@@ -8,8 +16,8 @@ public char* key_and_value_to_line(char* key, char* value){
         buf_cat(buf, key, strlen(key));
         buf_cat(buf, CONF_SEPARATOR_STRING, strlen(CONF_SEPARATOR_STRING));
         buf_cat(buf, value, strlen(value));
-        char* result = get_buf_data(buf);
-        free_buf(buf);
+        char* result = m_get_buf_string(buf);
+        destory_buf(buf);
         return result;
 }
 
@@ -24,23 +32,24 @@ public char* m_get_value(char* line){
         char* value = NULL;
         Tokens *tokens = init_tokens(line, CONF_SEPARATOR);
         if(tokens->size > 1){
-                value = m_cpy(trim(tokens->tokens[1], ' '));
+        	value = m_cpy(trim(tokens->tokens[1], ' '));
         }
         free_tokens(tokens);
         return value;
 }
 
+/** if the target key has not been found, the method will return NULL **/
 public char* m_get_value_by_key(char *file_path, char* target_key){
         char* value = NULL;
-        List* lines = get_lines_from_file(file_path);
+        List* lines = get_lines_from_text_file(file_path);
         char* line = NULL;
         while((line = list_next(lines)) != NULL){
-                if(count(line, CONF_SEPARATOR) > 0){
-                        char* key = m_get_key(line);
-                        if(match(key, target_key))
-                                value = m_get_value(line);
-                        free(key);
-                }
+			if(count(line, CONF_SEPARATOR) > 0){
+				char* key = m_get_key(line);
+				if(match(key, target_key))
+					value = m_get_value(line);
+				free2(key);
+			}
         }
         list_destory(lines, just_free);
         if(value != NULL)trim(value, ' ');
@@ -52,14 +61,14 @@ public int get_int_value_by_key(char *file_path, char* target_key){
         int int_value = 0;
         char *value = m_get_value_by_key(file_path,target_key);
         if(value != NULL)int_value = atoi(value);
-        free(value);
+        free2(value);
         return int_value;
 }
 
 /** if the key exists, the old value will be replaced by the new value **/
 public void flush_key_value(char* file_path, char* key, char* value){
         Buf* buf = init_buf();
-        List* lines = get_lines_from_file(file_path);
+        List* lines = get_lines_from_text_file(file_path);
         char* line = NULL;
         while((line = list_next(lines)) != NULL){
                 //ignore table info list line, which will append at the ned
@@ -68,16 +77,17 @@ public void flush_key_value(char* file_path, char* key, char* value){
                 buf_cat(buf, line, strlen(line));
                 buf_cat(buf, LINE_SEPARATOR_STRING, strlen(LINE_SEPARATOR_STRING));
 
-                free(temp_key);
+                free2(temp_key);
         }
 
         char* new_line = m_cats(3, key, CONF_SEPARATOR_STRING, value);
         buf_cat(buf, new_line, strlen(new_line));
 
         //printf("%s\n", bytes);
-        create_or_rewrite_file(file_path, get_buf_data(buf));
+        char* content = m_get_buf_string(buf);
+        create_or_rewrite_file(file_path, content);
 
-        free(new_line);
+        frees(2, new_line, content);
         destory_buf(buf);
 }
 
@@ -86,14 +96,13 @@ private char* key_and_value_list_to_line(char *key, List* valueList){
         return key_and_value_to_line(key, value);
 }
 
-public SyncJob* create_sync_job(char* target_conn, char* table_name, char* column_family, int begin_timestamp, int end_timestamp){
-        SyncJob* syncJob = malloc(sizeof(SyncJob));
-        syncJob->target_conn = m_cpy(target_conn);
-        syncJob->table_name = m_cpy(table_name);
-        syncJob->column_family = m_cpy(column_family);
-        syncJob->begin_timestamp = begin_timestamp;
-        syncJob->end_timestamp = end_timestamp;
-        return syncJob;
+public SyncJob* create_sync_job(char* target_conn, char* table_name, int begin_timestamp, int end_timestamp){
+		SyncJob* syncJob = malloc2(sizeof(SyncJob));
+		syncJob->target_conn = m_cpy(target_conn);
+		syncJob->table_name = m_cpy(table_name);
+		syncJob->begin_timestamp = begin_timestamp;
+		syncJob->end_timestamp = end_timestamp;
+		return syncJob;
 }
 
 private boolean match_region(void *destRegionInfo, void *srcRegionConn){
@@ -106,9 +115,8 @@ public RegionInfo* get_region_info(List* regionInfoList, char* region_conn){
         return list_find(regionInfoList, region_conn, match_region);
 }
 
-
 public RegionInfo* create_region_info(char* region_conn){
-        RegionInfo* regionInfo = malloc(sizeof(RegionInfo));
+        RegionInfo* regionInfo = malloc2(sizeof(RegionInfo));
         regionInfo->conn = m_cpy(region_conn);
         regionInfo->connecting = true;
         regionInfo->serving = true;
@@ -120,8 +128,8 @@ public RegionInfo* create_region_info(char* region_conn){
 private char* m_region_info_to_string(RegionInfo *regionInfo){
         Buf* buf = init_buf();
         buf_cat(buf, regionInfo->conn, strlen(regionInfo->conn));
-        char* result = get_buf_data(buf);
-        free_buf(buf);
+        char* result = m_get_buf_string(buf);
+        destory_buf(buf);
         return result;
 }
 
@@ -134,13 +142,13 @@ private RegionInfo* string_to_region_info(char* string){
 private List* string_to_region_info_list(char* string){
         List* regionInfoList = list_create();
         if(string != NULL){
-                Tokens* tokens = init_tokens(string, STRING_SEPARATOR);
-                int i=0;
-                for(i=0; i<tokens->size; i++){
-                        RegionInfo* regionInfo = string_to_region_info(tokens->tokens[i]);
-                        list_append(regionInfoList, regionInfo);
-                }
-                free_tokens(tokens);
+			Tokens* tokens = init_tokens(string, STRING_SEPARATOR);
+			int i=0;
+			for(i=0; i<tokens->size; i++){
+				RegionInfo* regionInfo = string_to_region_info(tokens->tokens[i]);
+				list_append(regionInfoList, regionInfo);
+			}
+			free_tokens(tokens);
         }
         return regionInfoList;
 }
@@ -150,16 +158,16 @@ private char* m_region_info_list_to_string(List* regionInfoList){
         Buf* buf = init_buf();
         RegionInfo* regionInfo = NULL;
         while((regionInfo = list_next(regionInfoList)) != NULL){
-                char* regionInfoString =  m_region_info_to_string(regionInfo);
-                buf_cat(buf, regionInfoString, strlen(regionInfoString));
-                buf_cat(buf, STRING_SEPARATOR_STRING, strlen(STRING_SEPARATOR_STRING));
+			char* regionInfoString =  m_region_info_to_string(regionInfo);
+			buf_cat(buf, regionInfoString, strlen(regionInfoString));
+			buf_cat(buf, STRING_SEPARATOR_STRING, strlen(STRING_SEPARATOR_STRING));
 
-                free(regionInfoString);
+			free2(regionInfoString);
         }
-        char* result = get_buf_data(buf);
+        char* result = m_get_buf_string(buf);
         list_rewind(regionInfoList);
         trim(result, STRING_SEPARATOR);
-        free_buf(buf);
+        destory_buf(buf);
         return result;
 }
 
@@ -169,35 +177,18 @@ public List* load_region_info_list(char* file_path){
         if(region_info_list_string != NULL) regionInfoList = string_to_region_info_list(region_info_list_string);
         else regionInfoList = list_create();
 
-        free(region_info_list_string);
+        free2(region_info_list_string);
         return regionInfoList;
 }
 
 public void flush_region_info_list(char* file_path, List* regionInfoList){
         char* region_info_list_string = m_region_info_list_to_string(regionInfoList);
         flush_key_value(file_path, CONF_REGION_LIST_KEY, region_info_list_string);
-        free(region_info_list_string);
-}
-
-private boolean match_column_family_info(void *columnFamilyInfo_void, void *column_family){
-        ColumnFamilyInfo* columnFamilyInfo = (ColumnFamilyInfo*)columnFamilyInfo_void;
-        if(match(columnFamilyInfo->column_family, (char*)column_family)) return true;
-        else return false;
-}
-
-public ColumnFamilyInfo* get_column_family_info(List* columnFamilyInfoList, char* column_family){
-        return list_find(columnFamilyInfoList, column_family, match_column_family_info);
-}
-
-public ColumnFamilyInfo* create_column_family_info(char* column_family){
-        ColumnFamilyInfo* columnFamilyInfo = malloc(sizeof(ColumnFamilyInfo));
-        columnFamilyInfo->column_family = m_cpy(column_family);
-        columnFamilyInfo->replicaQueueList = list_create();
-        return columnFamilyInfo;
+        free2(region_info_list_string);
 }
 
 public TabletInfo* create_tablet_info(RegionInfo *regionInfo, int begin_timestamp, int end_timestamp){
-        TabletInfo* tabletInfo = malloc(sizeof(TabletInfo));
+        TabletInfo* tabletInfo = malloc2(sizeof(TabletInfo));
         tabletInfo->regionInfo = regionInfo;
         tabletInfo->begin_timestamp = begin_timestamp;
         tabletInfo->end_timestamp = end_timestamp;
@@ -219,17 +210,15 @@ public char* m_tablet_info_to_string(TabletInfo* tabletInfo){
         Buf* buf = init_buf();
         char* region_info_string = m_region_info_to_string(tabletInfo->regionInfo);
         buf_cat(buf, region_info_string, strlen(region_info_string));
-        free(region_info_string);
         buf_cat(buf, STRING_SEPARATOR_STRING, strlen(STRING_SEPARATOR_STRING));
         char* begin_timestamp_string = m_itos(tabletInfo->begin_timestamp);
         buf_cat(buf, begin_timestamp_string, strlen(begin_timestamp_string));
-        free(begin_timestamp_string);
         buf_cat(buf, STRING_SEPARATOR_STRING, strlen(STRING_SEPARATOR_STRING));
         char* end_timestamp_string = m_itos(tabletInfo->end_timestamp);
         buf_cat(buf, end_timestamp_string, strlen(end_timestamp_string));
-        free(end_timestamp_string);
-        char *result = get_buf_data(buf);
-        free_buf(buf);
+        frees(3, region_info_string, begin_timestamp_string, end_timestamp_string);
+        char *result = m_get_buf_string(buf);
+        destory_buf(buf);
         return result;
 }
 
@@ -244,7 +233,7 @@ public TabletInfo* string_to_tablet_info(char* string){
 }
 
 public ReplicaQueue* create_replica_queue(int id){
-        ReplicaQueue* replicaQueue = malloc(sizeof(ReplicaQueue));
+        ReplicaQueue* replicaQueue = malloc2(sizeof(ReplicaQueue));
         replicaQueue->id = id;
         replicaQueue->tabletInfoList = list_create();
         return replicaQueue;
@@ -253,7 +242,7 @@ public ReplicaQueue* create_replica_queue(int id){
 public void free_replica_queue(void* replicaQueue_void){
         ReplicaQueue* replicaQueue = (ReplicaQueue*)replicaQueue_void;
         list_destory(replicaQueue->tabletInfoList, just_free);
-        free(replicaQueue);
+        free2(replicaQueue);
 }
 
 private boolean match_replica_queue(void *replicaQueue_void, void *id){
@@ -276,9 +265,9 @@ public char* m_replica_queue_to_string(ReplicaQueue* replicaQueue){
                 buf_cat(buf, ITEM_SEPARATOR_STRING, strlen(ITEM_SEPARATOR_STRING));
         }
         list_rewind(replicaQueue->tabletInfoList);
-        char* result = get_buf_data(buf);
+        char* result = m_get_buf_string(buf);
         trim(result, ITEM_SEPARATOR);
-        free_buf(buf);
+        destory_buf(buf);
         return result;
 }
 
@@ -296,10 +285,10 @@ public ReplicaQueue* string_to_replica_queue(int id, char* string){
 }
 
 public TableInfo* create_table_info(char *table_name){
-        TableInfo *tableInfo = malloc(sizeof(TableInfo));
-        tableInfo->table_name = m_cpy(table_name);
-        tableInfo->columnFamilyInfoList = list_create();
-        return tableInfo;
+		TableInfo *tableInfo = malloc2(sizeof(TableInfo));
+		tableInfo->table_name = m_cpy(table_name);
+		tableInfo->replicaQueueList = list_create();
+		return tableInfo;
 }
 
 private boolean match_table_info(void *tableInfo_void, void *table_name){
@@ -312,12 +301,6 @@ public TableInfo* get_table_info(List* tableInfoList, char* table_name){
         return list_find(tableInfoList, table_name, match_table_info);
 }
 
-/***
- * sample:
- * tableInfoList=people
- * people.default_cf.0=127.0.0.1:8302,120000,12000;127.0.0.1:8303,120000,12000
- * people.default_cf.1=127.0.0.1:8302,120000,12000;127.0.0.1:8303,120000,12000
- */
 public List* load_table_info_list(char *file_path){
         List* tableInfoList = list_create();
         char* tableListString = m_get_value_by_key(file_path, CONF_TABLE_INFO_LIST_KEY);
@@ -325,7 +308,7 @@ public List* load_table_info_list(char *file_path){
         List* tableList = generate_list_by_token(tableListString, STRING_SEPARATOR);
         char* table_name;
         while((table_name = list_next(tableList)) != NULL){
-                List* lines = get_lines_from_file_base_on_prefix(file_path, table_name);
+                List* lines = get_lines_from_text_file_base_on_prefix(file_path, table_name);
                 TableInfo* tableInfo = string_to_table_info(table_name, lines);
                 list_append(tableInfoList, tableInfo);
                 list_destory(lines, just_free);
@@ -335,16 +318,9 @@ public List* load_table_info_list(char *file_path){
 }
 
 public void destory_table_info(void* tableInfo_void){
-        TableInfo* tableInfo = (TableInfo*)tableInfo_void;
-        int i=0, size=list_size(tableInfo->columnFamilyInfoList);
-        for(i=0; i<size; i++){
-                ColumnFamilyInfo *columnFamilyInfo = list_get(tableInfo->columnFamilyInfoList, i);
-                list_destory(columnFamilyInfo->replicaQueueList, free_replica_queue);
-                free(columnFamilyInfo->column_family);
-        }
-        list_destory(tableInfo->columnFamilyInfoList, just_free);
-        free(tableInfo->table_name);
-        free(tableInfo);
+		TableInfo* tableInfo = (TableInfo*)tableInfo_void;
+		list_destory(tableInfo->replicaQueueList, free_replica_queue);
+		frees(2, tableInfo, tableInfo->table_name);
 }
 
 /* Sample String:
@@ -352,60 +328,44 @@ public void destory_table_info(void* tableInfo_void){
  * people.default_cf.1=127.0.0.1:8302,120000,12000;127.0.0.1:8303,120000,12000;
  */
 public TableInfo* string_to_table_info(char* table_name, List* lines){
-        TableInfo* tableInfo = create_table_info(table_name);
-        char* line = NULL;
-        while((line = list_next(lines)) != NULL){
-                char* key = m_get_key(line);
-                Tokens* keyTokens = init_tokens(key, MID_SEPARATOR);
-                if(keyTokens->size == 3){
-                        if(match(keyTokens->tokens[0], table_name)){
-                                ColumnFamilyInfo* columnFamilyInfo = get_column_family_info(tableInfo->columnFamilyInfoList, keyTokens->tokens[1]);
-                                if(columnFamilyInfo == NULL){
-                                        columnFamilyInfo = create_column_family_info(keyTokens->tokens[1]);
-                                        list_append(tableInfo->columnFamilyInfoList, columnFamilyInfo);
-                                }
-                                int id = atoi(keyTokens->tokens[2]);
-                                char* value = m_get_value(line);
-                                ReplicaQueue* replicaQueue = string_to_replica_queue(id, value);
-                                list_append(columnFamilyInfo->replicaQueueList, replicaQueue);
-                                free(value);
-                        }
-                }
-                free(key);
-                free_tokens(keyTokens);
-        }
-        list_rewind(lines);
-        return tableInfo;
+		TableInfo* tableInfo = create_table_info(table_name);
+		char* line = NULL;
+		while((line = list_next(lines)) != NULL){
+			char* key = m_get_key(line);
+			Tokens* keyTokens = init_tokens(key, MID_SEPARATOR);
+			if(keyTokens->size == 2){
+				if(match(keyTokens->tokens[0], table_name)){
+					int id = atoi(keyTokens->tokens[1]);
+					char* value = m_get_value(line);
+					ReplicaQueue* replicaQueue = string_to_replica_queue(id, value);
+					list_append(tableInfo->replicaQueueList, replicaQueue);
+					free2(value);
+				}
+			}
+			free2(key);
+			free_tokens(keyTokens);
+		}
+		list_rewind(lines);
+		return tableInfo;
 }
 
-/* Sample String:
- * people.default_cf.0=127.0.0.1:8302,120000,12000;127.0.0.1:8303,120000,12000;
- * people.default_cf.1=127.0.0.1:8302,120000,12000;127.0.0.1:8303,120000,12000;
- */
 public char* table_info_to_string(TableInfo *tableInfo){
-        Buf* buf = init_buf();
-        int i=0, column_family_size=list_size(tableInfo->columnFamilyInfoList);
-        for(i=0; i<column_family_size; i++){
-                ColumnFamilyInfo* columnFamilyInfo = list_get(tableInfo->columnFamilyInfoList, i);
-                int j=0, replica_queue_size=list_size(columnFamilyInfo->replicaQueueList);
-                for(j=0;j<replica_queue_size;j++){
-                        ReplicaQueue* replicaQueue = list_get(columnFamilyInfo->replicaQueueList, j);
-                        char* int_string = m_itos(replicaQueue->id);
-                        char* key = m_cats(5, tableInfo->table_name, MID_SEPARATOR_STRING,
-                                        columnFamilyInfo->column_family ,MID_SEPARATOR_STRING, int_string);
-                        char* value = m_replica_queue_to_string(replicaQueue);
-                        char* line = key_and_value_to_line(key, value);
-                        buf_cat(buf, line, strlen(line));
-                        buf_cat(buf, LINE_SEPARATOR_STRING, strlen(LINE_SEPARATOR_STRING));
+		Buf* buf = init_buf();
+		int j=0, replica_queue_size=list_size(tableInfo->replicaQueueList);
+		for(j=0;j<replica_queue_size;j++){
+			ReplicaQueue* replicaQueue = list_get(tableInfo->replicaQueueList, j);
+			char* int_string = m_itos(replicaQueue->id);
+			char* key = m_cats(3, tableInfo->table_name, MID_SEPARATOR_STRING, int_string);
+			char* value = m_replica_queue_to_string(replicaQueue);
+			char* line = key_and_value_to_line(key, value);
+			buf_cat(buf, line, strlen(line));
+			buf_cat(buf, LINE_SEPARATOR_STRING, strlen(LINE_SEPARATOR_STRING));
+			frees(3, key, value, int_string);
+		}
 
-                        free(key);
-                        free(value);
-                        free(int_string);
-                }
-        }
-        char* result = get_buf_data(buf);
-        free_buf(buf);
-        return result;
+		char* result = m_get_buf_string(buf);
+		destory_buf(buf);
+		return result;
 }
 
 private char* table_info_list_to_string(List* tableInfoList){
@@ -413,11 +373,11 @@ private char* table_info_list_to_string(List* tableInfoList){
         List* tableList = list_create();
         TableInfo *tableInfo = NULL;
         while((tableInfo = list_next(tableInfoList)) != NULL){
-                char* tableInfoString = table_info_to_string(tableInfo);
-                buf_cat(buf, tableInfoString, strlen(tableInfoString));
-                list_append(tableList, m_cpy(tableInfo->table_name));
+			char* tableInfoString = table_info_to_string(tableInfo);
+			buf_cat(buf, tableInfoString, strlen(tableInfoString));
+			list_append(tableList, m_cpy(tableInfo->table_name));
 
-                free(tableInfoString);
+			free2(tableInfoString);
         }
         list_rewind(tableInfoList);
         char* tableListStirng = key_and_value_list_to_line(CONF_TABLE_INFO_LIST_KEY, tableList);
@@ -425,53 +385,58 @@ private char* table_info_list_to_string(List* tableInfoList){
         buf_cat(buf, LINE_SEPARATOR_STRING, strlen(LINE_SEPARATOR_STRING));
 
         list_destory(tableList, just_free);
-        free(tableListStirng);
+        free2(tableListStirng);
 
-        char* result = get_buf_data(buf);
-        free_buf(buf);
+        char* result = m_get_buf_string(buf);
+        destory_buf(buf);
         return result;
 }
 
 public void flush_table_info_list(char* file_path, List* tableInfoList){
         Buf* buf = init_buf();
-        List* lines = get_lines_from_file(file_path);
+        List* lines = get_lines_from_text_file(file_path);
         char* line = NULL;
         while((line = list_next(lines)) != NULL){
-                //ignore table info list line, which will append at the ned
-                char* key = m_get_key(line);
-                if(match(key, CONF_TABLE_INFO_LIST_KEY)) continue;
-                //check if the table related with table config
-                Tokens* keyTokens = init_tokens(key, MID_SEPARATOR);
-                if(keyTokens->size == 3 && get_table_info(tableInfoList, keyTokens->tokens[0]) != NULL) {
-                        free_tokens(keyTokens);
-                        continue;
-                }
-                free_tokens(keyTokens);
-                buf_cat(buf, line, strlen(line));
-                buf_cat(buf, LINE_SEPARATOR_STRING, strlen(LINE_SEPARATOR_STRING));
+			//ignore table info list line, which will append at the ned
+			char* key = m_get_key(line);
+			if(match(key, CONF_TABLE_INFO_LIST_KEY)) continue;
+			//check if the table related with table config
+			Tokens* keyTokens = init_tokens(key, MID_SEPARATOR);
+			if(keyTokens->size == 3 && get_table_info(tableInfoList, keyTokens->tokens[0]) != NULL) {
+				free_tokens(keyTokens);
+				continue;
+			}
+			free_tokens(keyTokens);
+			buf_cat(buf, line, strlen(line));
+			buf_cat(buf, LINE_SEPARATOR_STRING, strlen(LINE_SEPARATOR_STRING));
 
-                free(key);
+			free2(key);
         }
         //flush the table info part
         byte* tableInfoListString = table_info_list_to_string(tableInfoList);
         buf_cat(buf, tableInfoListString, strlen(tableInfoListString));
 
         //printf("%s\n", bytes);
-        create_or_rewrite_file(file_path, get_buf_data(buf));
+        char* content = m_get_buf_string(buf);
+        create_or_rewrite_file(file_path, content);
 
         list_destory(lines, just_free);
-        free(tableInfoListString);
+        frees(2, tableInfoListString, content);
         destory_buf(buf);
 }
 
 public char* get_conf_path_from_argv(int argc, char *argv[], char* default_conf_path){
-        char *conf_path = NULL;
-        if(argc==3){
-                if(match(argv[1], CONF_OPTION_KEY))
-                        conf_path = argv[2];
-        }else{
-                if(get_file_size(default_conf_path) != -1)
-                        conf_path = default_conf_path;
+        char *conf_path = default_conf_path;
+        if(argc == 3){
+			if(match(argv[1], CONF_OPTION_KEY)){
+				if(file_exist(argv[2]) == true){
+					conf_path = argv[2];
+				}
+			}
+        }
+        //Make sure conf file exist
+        if(file_exist(conf_path) == false){
+        	 create_or_rewrite_file(conf_path, NULL);
         }
         return conf_path;
 }
@@ -523,7 +488,7 @@ void testcast_for_conf_list_to_string(void){
         char* result = key_and_value_list_to_line(key, list);
         printf("%s\n", result);
         list_destory(list, just_free);
-        free(result);
+        free2(result);
 }
 
 void testcase_for_m_get_target_value(void){
@@ -531,7 +496,7 @@ void testcase_for_m_get_target_value(void){
         char *target_key = CONF_PORT_KEY;
         char *value = m_get_value_by_key(file_path, target_key);
         if(value != NULL) printf("%s\n", value);
-        free(value);
+        free2(value);
 }
 
 void add_table_info(List* tableInfoList){
