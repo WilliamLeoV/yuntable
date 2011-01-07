@@ -1,129 +1,12 @@
-#include "global.h"
 #include "list.h"
 #include "utils.h"
-
-public void* mallocs(int size){
-        return calloc(1, size+1);
-}
-
-#define BEGIN_BUF_SIZE 1000
-
-#define GROWTH_FACTOR 2
-
-/**  serializing and deserializing methods **/
-struct _Buf{
-        byte* data;
-        int index; /** the pointer of data, not the size of data, its usage will be varied base on the method **/
-        int allocated_size; /* the size has been allocated */
-};
-
-public byte* get_buf_data(Buf *buf){
-        return buf->data;
-}
-
-public int get_buf_index(Buf *buf){
-        return buf->index;
-}
-
-public Buf* init_buf(){
-        Buf *buf = malloc(sizeof(Buf));
-        buf->index = 0;
-        buf->allocated_size = BEGIN_BUF_SIZE;
-        buf->data = calloc(1, buf->allocated_size);
-        return buf;
-}
-
-public void enlarge_buf(Buf *buf, int size){
-        int required_len = buf->index + size;
-        if(buf->allocated_size < required_len){
-                int target_len = buf->allocated_size * GROWTH_FACTOR;
-                if(target_len < required_len) target_len = required_len * GROWTH_FACTOR;
-                buf->allocated_size = target_len;
-                buf->data = realloc(buf->data, buf->allocated_size);
-        }
-}
-
-/* the container for importing the current data sets  */
-public Buf* create_buf(int index, byte* data){
-        Buf *buf = malloc(sizeof(Buf));
-        buf->index = index;
-        buf->allocated_size = 0;
-        buf->data = data;
-        return buf;
-}
-
-public void buf_cat(Buf *buf, void* src, int size){
-        enlarge_buf(buf, size);
-        void* tmp_dest = buf->data;
-        //locate the dest begin index
-        tmp_dest+=buf->index;
-        memcpy(tmp_dest, src, size);
-        buf->index += size;
-}
-
-public void buf_combine(Buf* dest_buf, Buf* src_buf){
-        enlarge_buf(dest_buf, src_buf->index);
-        void* tmp_dest = dest_buf->data;
-        int dest_begin_index = dest_buf->index;
-        //locate the dest begin index
-        while(dest_begin_index--!=0) tmp_dest++;
-        memcpy(tmp_dest, src_buf->data, src_buf->index);
-        dest_buf->index += src_buf->index;
-}
-
-public void* buf_load(Buf* buf, int size){
-        //add 1 for string
-        void *dest = mallocs(size);
-        void *tmp_src = buf->data;
-        tmp_src = move_pointer(tmp_src, buf->index);
-        memcpy(dest, tmp_src, size);
-        buf->index += size;
-        return dest;
-}
-
-public int buf_load_int(Buf* buf){
-        void* string = buf_load(buf, sizeof(int));
-        int integer = btoi(string);
-        free(string);
-        return integer;
-}
-
-public long long buf_load_long_long(Buf* buf){
-        void* string = buf_load(buf, sizeof(long long));
-        long long longlong = btoll(string);
-        free(string);
-        return longlong;
-}
-
-public short buf_load_short(Buf* buf){
-        void* string = buf_load(buf, sizeof(short));
-        short short_int = btos(string);
-        free(string);
-        return short_int;
-}
-
-public void destory_buf(Buf* buf){
-        if(buf != NULL){
-                free(buf->data);
-                free(buf);
-        }
-}
-
-public void free_buf(Buf* buf){
-        if(buf != NULL) free(buf);
-}
-
-#define LOG_PREFIX "log:"
-
-public void logg(char *format, void *p){
-#ifndef DISABLE_LOGGING
-        printf(LOG_PREFIX);
-        printf(format, p);
-#endif
-}
+#include "malloc2.h"
+#include "log.h"
+#include "buf.h"
 
 /**   string normal operation part  **/
 
+/** the safe implmenetaion of strcat **/
 public char* move_pointer(char* pointer, int div){
         int i=0;
         for(i=0; i<div; i++) pointer++;
@@ -134,46 +17,78 @@ public char* cat(char* dest, char* src){
         return strncat(dest, src, strlen(src));
 }
 
+/**allocate a memory chunk and concat multiple strings**/
 public char* m_cats(int size, ...){
         //clean dest
-        char *dest = calloc(1, 10);
+        char *dest = mallocs(10);
         va_list ap;
         int i=0;
 
         va_start(ap, size);
         for(i=0; i<size; i++){
-                //this syntax error is a eclipse bug
-                char *str = va_arg(ap, char *);
-                int len = strlen(dest) + strlen(str);
-                dest = realloc(dest, len + 1);
-                cat(dest, str);
-                dest[len] = '\0';
+			//this syntax error is a eclipse bug
+			char *str = va_arg(ap, char *);
+			int len = strlen(dest) + strlen(str);
+			dest = realloc2(dest, len + 1);
+			cat(dest, str);
+			dest[len] = '\0';
         }
         return dest;
 }
 
-/** need to make sure the size of dest is bigger than the size of src + 1 **/
+
+/** the safe implmenetaion of strcpy, need to make sure
+ * the size of dest is bigger than the size of src + 1 **/
 public char* cpy(char* dest, char* src){
         memset(dest, 0, strlen(src)+1);
         return strncpy(dest, src, strlen(src));
 }
 
+/** will create a memory chunk, before cpy, and needs to be freed**/
 public char* m_cpy(char *src){
         char *s = mallocs(strlen(src));
-        cpy(s, src);
-        return s;
+        return cpy(s, src);
 }
 
+public char* trim(char *str, char deli){
+        //remove left side
+        while(*str == deli){
+			str++;
+        }
+        //remove right side
+        char* tmp = str;
+        while(*tmp != '\0')tmp++;
+        tmp--;
+
+        while(*tmp == deli){
+			*tmp = '\0';
+			tmp--;
+        }
+        return str;
+}
+
+/** other methods **/
+
+public int max(int a, int b){
+        int max = a > b? a : b;
+        return max;
+}
+
+/** the simple implmenetaion for strncmp, and ignore case **/
 public boolean cmp(char* dest, char* src, int len){
         boolean result = false;
         if(strncasecmp(dest, src, len)==0) result = true;
         return result;
 }
 
+/** the safe version of cmp,  will used max len between the two strings and ignore case **/
 public boolean match(char* dest, char *src){
-        return (strcmp(dest, src) == 0);
+		int max_len = max(strlen(dest), strlen(src));
+		/** Base on previous experience, strcmp may not fit for this situation **/
+		return cmp(dest, src, max_len);
 }
 
+/** the match method for list find **/
 public boolean match_for_list_find(void* dest, void *src){
         char* tmp_dest = (char*)dest;
         char* tmp_src = (char*)src;
@@ -181,6 +96,7 @@ public boolean match_for_list_find(void* dest, void *src){
         return cmp(tmp_dest, tmp_src, max_len);
 }
 
+/** if the tail of dest is as same as src**/
 public boolean match_tail(char* dest, char *src){
         //TODO if the dest has two set of chars like src, which will cause some problems
         char* tmp_dest = dest;
@@ -192,7 +108,7 @@ public boolean match_tail(char* dest, char *src){
         else return false;
 }
 
-/** count the occurrence of target inside the string **/
+/** count the occurrence of target char inside the string **/
 public int count(char *string, char target){
         int occurrence = 0;
         while(*string != '\0'){
@@ -206,21 +122,21 @@ public int count(char *string, char target){
 
 /** integer to string **/
 public char* m_itos(int num){
-        char *str = calloc(1, 20);
+        char *str = mallocs(20);
         sprintf(str, "%d", num);
         return str;
 }
 
-/** long long to string **/
+/** long to string **/
 public char* m_lltos(long long num){
-        char *str = calloc(1, 50);
+        char *str = mallocs(50);
         sprintf(str, "%lld", num);
         return str;
 }
 
 /** char to string **/
 public char* m_ctos(char chr){
-        char *str = calloc(1, 1);
+        char *str = mallocs(1);
         sprintf(str, "%c", chr);
         return str;
 }
@@ -228,7 +144,7 @@ public char* m_ctos(char chr){
 /** string to boolean **/
 public boolean stob(char* bool_str){
         if(match(bool_str, true_str)){
-                return true;
+			return true;
         }else return false;
 }
 
@@ -247,73 +163,63 @@ public short btos(byte *b){
         return *((short *)b);
 }
 
-public char* trim(char *str, char deli){
-        //remove left side
-        while(*str == deli){
-                str++;
-        }
-        //remove right side
-        char* tmp = str;
-        while(*tmp != '\0')tmp++;
-        tmp--;
-
-        while(*tmp == deli){
-                *tmp = '\0';
-                tmp--;
-        }
-        return str;
-}
-
 /**   string tokens operation part  **/
 
 /** this method will remove  the token which is empty or just have a lot of space **/
 private Tokens* clean_tokens(Tokens* tokens){
         int i=0;
         for(i=0; i<tokens->size; i++){
-                trim(tokens->tokens[i], ' ');
-                if(strlen(tokens->tokens[i]) == 0){
-                        tokens->size--;
-                        free(tokens->tokens[i]);
-                        if(i<tokens->size - 1)
-                                tokens->tokens[i] = tokens->tokens[i+1];
-                }
+			trim(tokens->tokens[i], ' ');
+			if(strlen(tokens->tokens[i]) == 0){
+				tokens->size--;
+				free2(tokens->tokens[i]);
+				if(i<tokens->size - 1)
+					tokens->tokens[i] = tokens->tokens[i+1];
+			}
         }
         return tokens;
 }
 
+/*
+ * sample str: name, sex,  home_address, work_address
+ * sample deli: , may have some issue on deli
+ */
 public Tokens* init_tokens(char *str, char deli){
-        Tokens *tokens = malloc(sizeof(Tokens));
+        Tokens *tokens = malloc2(sizeof(Tokens));
         tokens->size = 0;
         if(str == NULL || strlen(str) == 0) return tokens;
         char *tmp = str;
         int i = 0, len = strlen(str);
         int max_times = count(tmp, deli) + 1;
-        tokens->tokens = malloc(max_times * sizeof(char*));
+        tokens->tokens = malloc2(max_times * sizeof(char*));
         tokens->tokens[0] = mallocs(len);
         boolean prev_matched = false;
         while(*tmp != '\0'){
-                if(*tmp == deli){
-                        if(!prev_matched){
-                                i++;
-                                tokens->tokens[i] = mallocs(len);
-                        }
-                        prev_matched = true;
-                }else{
-                        prev_matched = false;
-                        strncat(tokens->tokens[i],tmp,1);
-                }
-                tmp++;
+			if(*tmp == deli){
+				if(!prev_matched){
+					i++;
+					tokens->tokens[i] = mallocs(len);
+				}
+				prev_matched = true;
+			}else{
+				prev_matched = false;
+				strncat(tokens->tokens[i],tmp,1);
+			}
+			tmp++;
         }
         tokens->size = i + 1 ;
         return clean_tokens(tokens);
 }
 
+/*
+ * since the tokens has a nested array, it needs a method to free
+ */
 public void free_tokens(Tokens* tokens){
         int i=0;
         for(i=0; i<tokens->size; i++){
-                free(tokens->tokens[i]);
+			free2(tokens->tokens[i]);
         }
-        free(tokens);
+        free2(tokens);
 }
 
 public List* generate_list_by_token(char* bytes, char token){
@@ -321,9 +227,9 @@ public List* generate_list_by_token(char* bytes, char token){
         Tokens* tokens = init_tokens(bytes, token);
         int i=0;
         for(i=0; i<tokens->size; i++){
-                if(strlen(tokens->tokens[i]) == 0) continue;
-                char* item = m_cpy(tokens->tokens[i]);
-                list_append(list, item);
+			if(strlen(tokens->tokens[i]) == 0) continue;
+			char* item = m_cpy(tokens->tokens[i]);
+			list_append(list, item);
         }
         free_tokens(tokens);
         return list;
@@ -335,65 +241,79 @@ public char* list_to_string_by_token(List* list, char token){
         int size = list_size(list);
         int i=0;
         for(i=0; i<size; i++){
-                char *value = list_next(list);
-                buf_cat(buf, value, strlen(value));
-                buf_cat(buf, token_string, strlen(token_string));
+			char *value = list_next(list);
+			buf_cat(buf, value, strlen(value));
+			buf_cat(buf, token_string, strlen(token_string));
         }
-        char* result = get_buf_data(buf);
+        char* result = m_get_buf_string(buf);
         trim(result, token);
-        free(token_string);
+        free2(token_string);
         list_rewind(list);
-        free_buf(buf);
+        destory_buf(buf);
         return result;
 }
 
-/** other methods **/
-public int max(int a, int b){
-        int max = a > b? a : b;
-        return max;
-}
-
 /**   I/O operation part  **/
-public char* m_load_file_to_memory(char *file_path){
+
+/** if returns 0, that means the file not exist**/
+public char* m_load_txt_file_to_memory(char *file_path){
         int file_size = get_file_size(file_path);
         if(file_size == 0) return NULL;
-        char *buf = mallocs(file_size);
+        char *buffer = mallocs(file_size);
         FILE *fp = fopen(file_path, "r");
-        fread(buf, file_size,1, fp);
+        fread(buffer, file_size,1, fp);
         fclose(fp);
-        return buf;
+        return buffer;
 }
 
-public boolean create_or_rewrite_file(char *filename, char* content){
-        FILE *fp = fopen(filename, "w");
+/** If the file can not be created, the system will be aborted!!!
+ *  Besides the content can be NULL, if just want to created the file.
+ * **/
+public void create_or_rewrite_file(char *file_name, char* content){
+        FILE *fp = fopen(file_name, "w");
         if (fp == NULL) {
-                printf("error:can not create file");
-                return false;
+        	logg(EMERG, "can not create this file %s.", file_name);
+        	exit(-1);
         }
-        fwrite(content, strlen(content), 1, fp);
+        if(content != NULL){
+            fwrite(content, strlen(content), 1, fp);
+        }
         fclose(fp);
-        return true;
 }
 
-/** if the method return -1, means the file not exist**/
+public boolean file_exist(char* file_path){
+    	boolean result = false;
+		FILE *fp = fopen(file_path, "r");
+    	if(fp != NULL){
+    		result = true;
+    		fclose(fp);
+    	}
+    	return result;
+}
+
+/** If the file can not be handle, the system will be aborted!!! **/
 public int get_file_size(char *file_path){
         FILE *fp = fopen(file_path, "r");
-        if(fp == NULL) return -1;
+        if(fp == NULL){
+        	logg(EMERG, "Can not open the file %s.", file_path);
+        	exit(-1);
+        }
         fseek(fp,0,SEEK_END);
         int size = ftell(fp);
         fclose(fp);
         return size;
 }
 
+/** will get file name before  first '.' with first file with this ext **/
 public List* get_files_path_by_ext(char *folder_path, char *ext){
         List *fileList = list_create();
         DIR *dir = opendir(folder_path);
         struct dirent *dp;
         while ((dp = readdir(dir)) != NULL) {
-                if(match_tail(dp->d_name, ext)){
-                        char *file_path = m_cats(3, folder_path, FOLDER_SEPARATOR_STRING, dp->d_name);
-                        list_append(fileList, file_path);
-                }
+			if(match_tail(dp->d_name, ext)){
+				char *file_path = m_cats(3, folder_path, FOLDER_SEPARATOR_STRING, dp->d_name);
+				list_append(fileList, file_path);
+			}
         }
         closedir(dir);
         return fileList;
@@ -412,26 +332,27 @@ public char* get_full_file_name(char* file_path){
         char* file_name = file_path;
         char* tmp = file_name;
         while( *tmp++ != '\0'){
-                if(*tmp ==  FOLDER_SEPARATOR)
-                        file_name = tmp + 1;
+			if(*tmp ==  FOLDER_SEPARATOR){
+				file_name = tmp + 1;
+			}
         }
         return file_name;
 }
 
-public List* get_lines_from_file(char* file_path){
-        char* file_content = m_load_file_to_memory(file_path);
+public List* get_lines_from_text_file(char* file_path){
+        char* file_content = m_load_txt_file_to_memory(file_path);
         List* lines = generate_list_by_token(file_content, LINE_SEPARATOR);
-        free(file_content);
+        free2(file_content);
         return lines;
 }
 
-public List* get_lines_from_file_base_on_prefix(char* file_path, char* prefix){
-        List* lines = get_lines_from_file(file_path);
+public List* get_lines_from_text_file_base_on_prefix(char* file_path, char* prefix){
+        List* lines = get_lines_from_text_file(file_path);
         List* newLines = list_create();
         char* line = NULL;
         while((line = list_next(lines)) != NULL){
-                if(cmp(line, prefix, strlen(prefix)))
-                        list_append(newLines, m_cpy(line));
+			if(cmp(line, prefix, strlen(prefix)))
+				list_append(newLines, m_cpy(line));
         }
         list_destory(lines, just_free);
         return newLines;
@@ -453,10 +374,12 @@ public int get_port(char* connection_string){
         return port;
 }
 
+/** only allows character list **/
 public List* string_to_list(char* list_string){
         return generate_list_by_token(list_string, STRING_SEPARATOR);
 }
 
+/** only allows character list **/
 public char* list_to_string(List* list){
         return list_to_string_by_token(list, STRING_SEPARATOR);
 }
@@ -472,7 +395,7 @@ public int generate_random_int(){
 }
 
 /* should get timestamp base on micro seconds */
-public long long get_current_time_mills(){
+public long long get_current_time_stamp(){
         struct timeval t;
         gettimeofday (&t, NULL);
         long long time_mills = (long long)t.tv_sec * 1000;
@@ -522,13 +445,13 @@ void testcase_for_generate_list_by_token(void){
         list_rewind(list);
         char* line = list_to_string_by_token(list, ',');
         printf("the string after recover %s\n", line);
-        free(line);
+        free2(line);
         list_destory(list, just_free);
 }
 
 void testcase_for_get_lines_from_file(void){
         char* file_path = "conf/master.conf";
-        List* lines = get_lines_from_file(file_path);
+        List* lines = get_lines_from_text_file(file_path);
         int i=0, index = list_size(lines);
         for(i=0; i<index; i++){
                 printf("%s\n", (char*)list_next(lines));
@@ -548,7 +471,7 @@ void testcase_for_m_itos(void){
         int test = 1237129083;
         char* ret = m_itos(test);
         printf("%s\n", ret);
-        free(ret);
+        free2(ret);
 }
 
 void testcase_for_token_operations(void){
@@ -558,7 +481,7 @@ void testcase_for_token_operations(void){
 
         int i=0;
         for(i=0; i<thiz->size; i++){
-                printf("---%d--%s---\n",i, thiz->tokens[i]);
+			printf("---%d--%s---\n",i, thiz->tokens[i]);
         }
         free_tokens(thiz);
 }
@@ -596,12 +519,16 @@ void testcase_for_m_cpy(void){
         char *src = "hello world";
         char *dest = m_cpy(src);
         printf("%s\n",dest);
-        free(dest);
+        free2(dest);
 }
 
 void testcase_for_logg(void){
         //char *str = "world";
-        logg("hello\n", NULL);
+	    setup_logging(INFO, "test.log");
+	    logg(EMERG, "EMERG Line");
+        logg(ISSUE, "ISSUE Line");
+        logg(INFO, "INFO Line");
+        logg(DEBUG, "DEBUG Line");
 }
 
 void testcase_for_times(void){
@@ -625,9 +552,9 @@ void testcase_for_trim(void){
 }
 
 void testcase_for_get_file_size(void){
-        char *file1 = "test";
-        char *file2 = "yuntable.yfile";
-        char *file3 = "nothing";
+        char *file1 = "build.sh";
+        char *file2 = "Readme";
+        char *file3 = "Makefile";
         printf("The size of %s is %d\n", file1, get_file_size(file1));
         printf("The size of %s is %d\n", file2, get_file_size(file2));
         printf("The size of %s is %d\n", file3, get_file_size(file3));
@@ -645,39 +572,22 @@ void testcase_for_remove_pointer(void){
         printf("%s\n", move_pointer(tablet_name, strlen("tablet")));
         printf("%s\n", tablet_name);
 }
-#include "msg.h"
-
-char* return_msg(void){
-        return ISSUE_MSG_NOTHING_FOUND;
-}
-
-char* return_msg2(void){
-        return return_msg();
-}
-
-void testcase_for_msg(void){
-        char* msg = return_msg2();
-        printf("%s\n", msg);
-}
 
 void testcase_for_list_to_string(void){
         List* list = list_create();
         list_append(list, m_cpy("test"));
         char* value = list_to_string(list);
         printf("value:%s\n", value);
-        free(value);
+        free2(value);
         printf("the list after free:%s\n", (char*)list_next(list));
 }
-
-#define BEGIN_ALLOCATED_SIZE 500000
-#define END_ALLOCATED_SIZE 640000
 
 void testcase_for_generate_random_int(void){
         printf("%d\n", generate_random_int());
 }
 
 void testcase_for_get_current_time_mills(void){
-        printf("%lld\n", get_current_time_mills());
+        printf("%lld\n", get_current_time_stamp());
 }
 
 void test_suite(void){
@@ -718,19 +628,17 @@ void test_suite(void){
         testcase_for_fwrite_int();
         printf("17) testcase_for_remove_pointer\n");
         testcase_for_remove_pointer();
-        printf("18) testcase_for_msg\n");
-        testcase_for_msg();
-        printf("19) testcase_for_list_to_string\n");
+        printf("18) testcase_for_list_to_string\n");
         testcase_for_list_to_string();
-        printf("20) testcase_for_generate_random_int\n");
+        printf("19) testcase_for_generate_random_int\n");
         testcase_for_generate_random_int();
-        printf("21) testcase_get_current_time_mills\n");
+        printf("20) testcase_get_current_time_mills\n");
         testcase_for_get_current_time_mills();
         printf("Completed Successfully\n");
 }
 
 int main(int argc, char *argv[]){
-        test_suite();
+		test_suite();
         return 1;
 }
 #endif

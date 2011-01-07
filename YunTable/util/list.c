@@ -1,11 +1,6 @@
-/*
- * list.c
- *
- *  Created on: 2010-6-26
- *      Author: ike
- */
-
+#include "malloc2.h"
 #include "list.h"
+
 
 typedef struct _ListNode{
 	struct _ListNode *next;
@@ -31,12 +26,11 @@ private ListNode* list_next_node(List* thiz){
 private void free_node(ListNode* node){
 	if(node->prev != NULL) node->prev = NULL;
 	if(node->next != NULL) node->next = NULL;
-	free(node);
+	free2(node);
 }
 
 public List* list_create(void){
-	List *list = malloc(sizeof(List));
-	if(list==NULL) return NULL;
+	List *list = malloc2(sizeof(List));
 	//safe action
 	list->first = NULL;
 	list->cursor = NULL;
@@ -44,7 +38,7 @@ public List* list_create(void){
 }
 
 private ListNode* create_list_node(void* data){
-	ListNode *next = malloc(sizeof(ListNode));
+	ListNode *next = malloc2(sizeof(ListNode));
 	next->data = data;
 	next->next = NULL;
 	next->prev = NULL;
@@ -70,8 +64,7 @@ public boolean list_append(List* thiz, void* data){
 	return true;
 }
 
-
-/** the method for better coding, but not performance for iterating **/
+/** the method for better coding, and thread safe, but not performance wise for large list iterating **/
 public void* list_get(List* thiz, int index){
 	void* result = NULL;
 	list_rewind(thiz);
@@ -85,6 +78,7 @@ public void* list_get(List* thiz, int index){
 	return result;
 }
 
+/** this method won't rewind the list, pls rewind the list after iterating it**/
 public void* list_next(List* thiz){
 	//if the list is empty or reach the end
 	ListNode *node = list_next_node(thiz);
@@ -124,6 +118,7 @@ public List* list_find_all(List* thiz, void* target, boolean(*match)(void *objec
 	return newList;
 }
 
+/** will use default strcmp method to sort**/
 public List* list_sort(List* thiz){
 	List *newList = list_create();
 	//convert list to array
@@ -143,6 +138,10 @@ public List* list_sort(List* thiz){
 	return newList;
 }
 
+/**
+ * @param free_object since the object maybe nested struct, so need method for further freeing object
+ *  but if the object has not been malloced, you only need a do nothing method;
+ */
 public boolean list_remove(List* thiz, void* data, void (*free_object)(void *object)){
 	free_object(data);
 	list_rewind(thiz);
@@ -164,12 +163,14 @@ public boolean list_remove(List* thiz, void* data, void (*free_object)(void *obj
 }
 
 public void list_destory(List* thiz, void (*free_object)(void *object)){
-	list_rewind(thiz);
-	void *data = NULL;
-	while((data = list_next(thiz))!=NULL) {
-		list_remove(thiz, data, free_object);
+	if(thiz != NULL){
+		list_rewind(thiz);
+		void *data = NULL;
+		while((data = list_next(thiz))!=NULL) {
+			list_remove(thiz, data, free_object);
+		}
+		free2(thiz);
 	}
-	free(thiz);
 }
 
 public void list_rewind(List* thiz){
@@ -185,10 +186,12 @@ public int list_size(List* thiz){
 	return i;
 }
 
+/** the method is a fake method, for freeing object has not been malloced **/
 public void only_free_struct(void *p){};
 
+/** this free method for character list **/
 public void just_free(void *p){
-	if(p != NULL) free(p);
+	if(p != NULL) free2(p);
 }
 
 public List* array_to_list(void** array, int size){
@@ -202,7 +205,7 @@ public List* array_to_list(void** array, int size){
 
 public void** list_to_array(List* thiz){
 	int size = list_size(thiz);
-	void **array = malloc(sizeof(void *) * size);
+	void **array = malloc2(sizeof(void *) * size);
 	int i=0;
 	list_rewind(thiz);
 	for(i=0; i<size; i++){
@@ -269,8 +272,8 @@ void struct_list_print(List *thiz){
 }
 
 void free_mess(void *mess){
-	free(((Mess *)mess)->value);
-	free(mess);
+	free2(((Mess *)mess)->value);
+	free2(mess);
 }
 
 void testcase_for_struct_list(void){
@@ -279,7 +282,7 @@ void testcase_for_struct_list(void){
 	List *list = list_create();
 	int i = 0;
 	for(i=0; i<4; i++){
-		Mess *mess = malloc(sizeof(Mess));
+		Mess *mess = malloc2(sizeof(Mess));
 		mess->value = calloc(1, sizeof(char)*strlen(text[i]));
 		strncpy(mess->value, text[i], strlen(text[i]));
 		list_append(list, mess);
@@ -321,7 +324,7 @@ void testcase_for_list_find(void){
 	List *list = list_create();
 	int i = 0;
 	for(i=0; i<4; i++){
-		Mess *mess = malloc(sizeof(Mess));
+		Mess *mess = malloc2(sizeof(Mess));
 		mess->value = calloc(1, sizeof(char)*strlen(text[i]));
 		strncpy(mess->value, text[i], strlen(text[i]));
 		list_append(list, mess);
