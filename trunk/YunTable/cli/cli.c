@@ -333,8 +333,8 @@ private void get_table_metadata(TableInfo* tableInfo){
 			ReplicaQueue* replicaQueue = list_get(tableInfo->replicaQueueList, i);
 			int k=0, tt_size=list_size(replicaQueue->tabletInfoList);
 			for(k=0; k<tt_size; k++){
-				printf("The Meta Info from Tablet %d.\n", k);
 				TabletInfo* tabletInfo = list_get(replicaQueue->tabletInfoList, k);
+				printf("The Meta Info from Tablet %d at Region %s.\n", k, tabletInfo->regionInfo->conn);
 				List* params = generate_charactor_params(1, tableInfo->table_name);
 				RPCRequest* rpcRequest = create_rpc_request(GET_METADATA_REGION_CMD, params);
 			    RPCResponse* rpcResponse = connect_conn(tabletInfo->regionInfo->conn, rpcRequest);
