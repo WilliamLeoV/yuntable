@@ -19,15 +19,13 @@ public char* get_tablet_folder(Tablet* tablet);
 public Tablet* load_tablet(char *tablet_folder);
 
 /** this method will create the tablet folder, table name file and wal file**/
-public Tablet* create_tablet(int tablet_id, char *tablet_folder, char *table_name, char* column_family);
+public Tablet* create_tablet(int tablet_id, char *tablet_folder, char *table_name);
 
 public char* get_tablet_folder(Tablet *tablet);
 
-public boolean match_tablet(Tablet *tablet, char* table_name, char* column_family);
+public boolean match_tablet(Tablet *tablet, char* table_name);
 
 public boolean match_tablet_by_table_name(Tablet *tablet, char* table_name);
-
-public char* get_column_family_by_tablet(Tablet *tablet);
 
 public void put_tablet(Tablet *tablet, long incr_item_id, Item *item);
 
@@ -37,9 +35,9 @@ public  ResultSet* query_tablet_by_timestamp(Tablet *tablet, int begin_timestamp
 
 public ResultSet* query_tablet_all(Tablet *tablet);
 
-public boolean need_to_flush_tablet(Tablet *tablet);
+public char* get_metadata_tablet(Tablet *tablet);
 
-public void flush_tablet(Tablet *tablet);
+public void refresh_tablet(Tablet *tablet);
 
 public int get_used_size_tablet(Tablet *tablet);
 
