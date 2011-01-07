@@ -35,6 +35,6 @@ public int tablet_used_size_region(char* table_name);
 
 #define START_SYNC_REGION_CMD "start_sync_region"
 
-public boolean start_sync_region(char* target_conn, char* table_name, int begin_timestamp, int end_timestamp);
+public boolean start_sync_region(char* target_conn, char* table_name, long long begin_timestamp, long long end_timestamp);
 
 #endif /* REGION_H_ */

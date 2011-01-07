@@ -30,7 +30,6 @@ struct _Tablet{
 
 #define TABLE_EXT ".table"
 #define YFILE_EXT ".yfile"
-#define MB		(1024 * 1024)
 
 public short get_tablet_id(Tablet* tablet){
 		return tablet->id;
@@ -245,6 +244,7 @@ private int get_disk_usage(Tablet *tablet){
 	return disk_usage;
 }
 
+/** Not only will calculate the total disk usage, will also update the size at tablet instance **/
 public int get_used_size_tablet(Tablet *tablet){
 	tablet->used_size = get_disk_usage(tablet);
 	return tablet->used_size;

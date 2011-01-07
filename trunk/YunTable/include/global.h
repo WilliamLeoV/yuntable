@@ -20,6 +20,7 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <sys/vfs.h>
 
 /**
  * The Global Header file contains all meta data that will be used throughout the project.
@@ -61,7 +62,7 @@ typedef unsigned short boolean;
 #define MASTER_LOG_FILE "master.log"
 #define REGION_LOG_FILE "region.log"
 
-#define DEFAULT_FLUSH_MEMSTORE_INTERVAL 1*60 /** one minute(for testing) to flush memstore content to store file **/
+#define DEFAULT_FLUSH_MEMSTORE_INTERVAL 1 * 60 /** one minute(for testing) to flush memstore content to store file **/
 
 #define NULL_STRING "NULL"
 
@@ -86,7 +87,7 @@ typedef unsigned short boolean;
 
 #define TABLET_FOLDER_PREFIX "tablet"
 
-#define EMPTY_STRING ""
+#define MB		(1024 * 1024)
 
 /** shared RPC Call **/
 

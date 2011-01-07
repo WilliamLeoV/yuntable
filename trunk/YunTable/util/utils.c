@@ -403,6 +403,16 @@ public long long get_current_time_stamp(){
         return time_mills;
 }
 
+/** The Unit is MB **/
+public int get_local_partition_free_space(){
+	char* local_dir = ".";
+    struct statfs diskInfo;
+    statfs(local_dir, &diskInfo);
+    unsigned long long totalBlocks = diskInfo.f_bsize;
+    unsigned long long freeDisk = diskInfo.f_bavail*totalBlocks;
+    return freeDisk / MB;
+}
+
 #ifdef UTILS_TEST
 #include <pthread.h>
 void test_long_to_string(void){
@@ -590,6 +600,10 @@ void testcase_for_get_current_time_mills(void){
         printf("%lld\n", get_current_time_stamp());
 }
 
+void testcase_for_get_local_partition_free_space(void){
+		printf("%d\n", get_local_partition_free_space());
+}
+
 void test_suite(void){
         printf("The Test Suit of utils is starting\n");
         printf("0) test_long_to_string\n");
@@ -634,6 +648,8 @@ void test_suite(void){
         testcase_for_generate_random_int();
         printf("20) testcase_get_current_time_mills\n");
         testcase_for_get_current_time_mills();
+        printf("21) testcase_for_get_local_partition_free_space\n");
+        testcase_for_get_local_partition_free_space();
         printf("Completed Successfully\n");
 }
 

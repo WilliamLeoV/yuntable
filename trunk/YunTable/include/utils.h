@@ -103,6 +103,8 @@ public int generate_random_int();
 
 public long long get_current_time_stamp();
 
+public int get_local_partition_free_space();
+
 #ifdef __cplusplus
 }
 #endif
