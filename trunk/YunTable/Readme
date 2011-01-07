@@ -34,9 +34,7 @@ YunTable Cli Part(Type and Run at the yuncli):
 add master:127.0.0.1:8301
 add region:127.0.0.1:8302
 add table:people
-add table:people column_family:address
-put table:people row:me name:"ike" sex:"male" address.homeaddress:"sh"
+put table:people row:me name:"ike" sex:"male"
 get table:people row:me
-put table:people row:me1 name:"ike1" sex:"male1" address.homeaddress:"sh1"
-get table:people row:me1
+show table:people
 quit
