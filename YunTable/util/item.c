@@ -1,15 +1,15 @@
 #include "global.h"
 #include "utils.h"
 #include "item.h"
+#include "buf.h"
+#include "malloc2.h"
 
 struct _Key{
-        short row_key_len;
-        char* row_key;
-        short column_family_len;
-        char* column_family;
-        short column_qualifer_len;
-        char* column_qualifer;
-        long long timestamp;
+		short row_key_len;
+		char* row_key;
+		short column_name_len;
+		char* column_name;
+		long long timestamp;
 };
 
 struct _Item{
@@ -18,6 +18,12 @@ struct _Item{
         byte *value;
 };
 
+/* The binary format of ResultSet:
+ * Magic
+ * item_size
+ * Item** -> key, val_len, value
+ ***/
+
 #define RESULT_SET_MAGIC "rsutSet"
 
 public Key* get_key(Item *item){
@@ -25,48 +31,43 @@ public Key* get_key(Item *item){
 }
 
 public Key* m_load_key(FILE *fp){
-        Key *key = malloc(sizeof(Key));
-        fread(&key->row_key_len, sizeof(key->row_key_len), 1, fp);
-        key->row_key = mallocs(key->row_key_len);
-        fread(key->row_key, key->row_key_len, 1, fp);
-        fread(&key->column_family_len, sizeof(key->column_family_len), 1, fp);
-        key->column_family = mallocs(key->column_family_len);
-        fread(key->column_family, key->column_family_len, 1, fp);
-        fread(&key->column_qualifer_len, sizeof(key->column_qualifer_len), 1, fp);
-        key->column_qualifer = mallocs(key->column_qualifer_len);
-        fread(key->column_qualifer, key->column_qualifer_len, 1, fp);
-        fread(&key->timestamp, sizeof(key->timestamp), 1, fp);
-        return key;
+		Key *key = malloc2(sizeof(Key));
+		fread(&key->row_key_len, sizeof(key->row_key_len), 1, fp);
+		key->row_key = mallocs(key->row_key_len);
+		fread(key->row_key, key->row_key_len, 1, fp);
+		fread(&key->column_name_len, sizeof(key->column_name_len), 1, fp);
+		key->column_name = mallocs(key->column_name_len);
+		fread(key->column_name, key->column_name_len, 1, fp);
+		fread(&key->timestamp, sizeof(key->timestamp), 1, fp);
+		return key;
 }
 
-private Key* create_key(char *row_key, char *column_family, char *column_qualifier){
-        Key *key = malloc(sizeof(Key));
-        key->row_key_len = strlen(row_key);
-        key->row_key = m_cpy(row_key);
-        key->column_family_len = strlen(column_family);
-        key->column_family = m_cpy(column_family);
-        key->column_qualifer_len = strlen(column_qualifier);
-        key->column_qualifer = m_cpy(column_qualifier);
-        key->timestamp = get_current_time_mills();
-        return key;
+private Key* create_key(char *row_key, char *column_qualifier){
+		Key *key = malloc2(sizeof(Key));
+		key->row_key_len = strlen(row_key);
+		key->row_key = m_cpy(row_key);
+		key->column_name_len = strlen(column_qualifier);
+		key->column_name = m_cpy(column_qualifier);
+		key->timestamp = get_current_time_stamp();
+		return key;
 }
 
 public Key* m_clone_key(Key* key){
-        return create_key(key->row_key, key->column_family, key->column_qualifer);
+		return create_key(key->row_key, key->column_name);
 }
 
-public Item* m_create_item(char *row_key, char *column_family, char *column_qualifier, char *value){
-        Key *key = create_key(row_key, column_family, column_qualifier);
-        //init a new item base on the input
-        Item *item = malloc(sizeof(Item));
-        item->key = key;
-        item->val_len = strlen(value);
-        item->value = m_cpy(value);
-        return item;
+public Item* m_create_item(char *row_key, char *column_name, char *value){
+		Key *key = create_key(row_key, column_name);
+		//init a new item base on the input
+		Item *item = malloc2(sizeof(Item));
+		item->key = key;
+		item->val_len = strlen(value);
+		item->value = m_cpy(value);
+		return item;
 }
 
 public Item* m_load_item(FILE *fp){
-        Item *item = malloc(sizeof(Item));
+        Item *item = malloc2(sizeof(Item));
         item->key = m_load_key(fp);
         fread(&item->val_len, sizeof(item->val_len), 1, fp);
         item->value = mallocs(item->val_len);
@@ -75,23 +76,19 @@ public Item* m_load_item(FILE *fp){
 }
 
 public Item* m_clone_item(Item* item){
-        return m_create_item(item->key->row_key, item->key->column_family, item->key->column_qualifer, item->value);
+		return m_create_item(item->key->row_key, item->key->column_name, item->value);
 }
 
-public char* get_column_family(Item *item){
-        return item->key->column_family;
-}
-
-public char* get_column_qualifier(Item *item){
-        return item->key->column_qualifer;
+public char* get_column_name(Item *item){
+		return item->key->column_name;
 }
 
 public char* get_value(Item *item){
         return item->value;
 }
 
-public char* get_row_key(Item *item){
-        return item->key->row_key;
+public char* get_row_key(Key *key){
+		return key->row_key;
 }
 
 public long long get_timestamp(Item *item){
@@ -111,13 +108,11 @@ public boolean between_timestamps(long long timestamp, long long begin_timestamp
 }
 
 public void flush_key(Key* key, FILE *fp){
-        fwrite(&key->row_key_len, sizeof(key->row_key_len), 1,  fp);
-        fwrite(key->row_key, key->row_key_len, 1,  fp);
-        fwrite(&key->column_family_len, sizeof(key->column_family_len), 1,  fp);
-        fwrite(key->column_family, key->column_family_len, 1,  fp);
-        fwrite(&key->column_qualifer_len, sizeof(key->column_qualifer_len), 1,  fp);
-        fwrite(key->column_qualifer, key->column_qualifer_len, 1,  fp);
-        fwrite(&key->timestamp, sizeof(key->timestamp), 1,  fp);
+		fwrite(&key->row_key_len, sizeof(key->row_key_len), 1,  fp);
+		fwrite(key->row_key, key->row_key_len, 1,  fp);
+		fwrite(&key->column_name_len, sizeof(key->column_name_len), 1,  fp);
+		fwrite(key->column_name, key->column_name_len, 1,  fp);
+		fwrite(&key->timestamp, sizeof(key->timestamp), 1,  fp);
 }
 
 public void flush_item(Item *item, FILE *fp){
@@ -127,15 +122,13 @@ public void flush_item(Item *item, FILE *fp){
 }
 
 private Buf* key_to_byte(Key *key){
-        Buf *buf = init_buf();
-        buf_cat(buf, &key->row_key_len, sizeof(key->row_key_len));
-        buf_cat(buf, key->row_key, key->row_key_len);
-        buf_cat(buf, &key->column_family_len, sizeof(key->column_family_len));
-        buf_cat(buf, key->column_family, key->column_family_len);
-        buf_cat(buf, &key->column_qualifer_len, sizeof(key->column_qualifer_len));
-        buf_cat(buf, key->column_qualifer, key->column_qualifer_len);
-        buf_cat(buf, &key->timestamp, sizeof(key->timestamp));
-        return buf;
+		Buf *buf = init_buf();
+		buf_cat(buf, &key->row_key_len, sizeof(key->row_key_len));
+		buf_cat(buf, key->row_key, key->row_key_len);
+		buf_cat(buf, &key->column_name_len, sizeof(key->column_name_len));
+		buf_cat(buf, key->column_name, key->column_name_len);
+		buf_cat(buf, &key->timestamp, sizeof(key->timestamp));
+		return buf;
 }
 
 private Buf* item_to_byte(Item* item){
@@ -164,19 +157,17 @@ public Buf* result_set_to_byte(ResultSet* resultSet){
 }
 
 private Key* byte_to_key(Buf* buf){
-        Key *key = malloc(sizeof(Key));
-        key->row_key_len = buf_load_short(buf);
-        key->row_key = buf_load(buf, key->row_key_len);
-        key->column_family_len = buf_load_short(buf);
-        key->column_family = buf_load(buf, key->column_family_len);
-        key->column_qualifer_len = buf_load_short(buf);
-        key->column_qualifer = buf_load(buf, key->column_qualifer_len);
-        key->timestamp = buf_load_long_long(buf);
-        return key;
+		Key *key = malloc2(sizeof(Key));
+		key->row_key_len = buf_load_short(buf);
+		key->row_key = buf_load(buf, key->row_key_len);
+		key->column_name_len = buf_load_short(buf);
+		key->column_name = buf_load(buf, key->column_name_len);
+		key->timestamp = buf_load_long_long(buf);
+		return key;
 }
 
 private Item* byte_to_item(Buf* buf){
-        Item *item = malloc(sizeof(Item));
+        Item *item = malloc2(sizeof(Item));
         item->key = byte_to_key(buf);
         item->val_len = buf_load_int(buf);
         item->value = buf_load(buf, item->val_len);
@@ -185,12 +176,12 @@ private Item* byte_to_item(Buf* buf){
 
 public ResultSet* byte_to_result_set(byte* bytes){
         Buf* buf = create_buf(0, bytes);
-        ResultSet *resultSet = malloc(sizeof(ResultSet));
+        ResultSet *resultSet = malloc2(sizeof(ResultSet));
         char* magic_string = buf_load(buf, sizeof(resultSet->magic));
         cpy(resultSet->magic, magic_string);
-        free(magic_string);
+        free2(magic_string);
         resultSet->size = buf_load_int(buf);
-        resultSet->items = malloc(sizeof(Item *) * resultSet->size);
+        resultSet->items = malloc2(sizeof(Item *) * resultSet->size);
         int i=0;
         for(i=0; i<resultSet->size; i++){
                 resultSet->items[i] = byte_to_item(buf);
@@ -199,17 +190,14 @@ public ResultSet* byte_to_result_set(byte* bytes){
 }
 
 private void free_key(Key *key){
-        free(key->row_key);
-        free(key->column_family);
-        free(key->column_qualifer);
-        free(key);
+		frees(3, key->row_key, key->column_name, key);
 }
 
 public void free_item(Item* item){
         if(item == NULL) return;
         free_key(item->key);
-        free(item->value);
-        free(item);
+        frees(2, item->value, item);
+
 }
 
 /* only free inside items */
@@ -218,18 +206,17 @@ public void free_item_array(int item_size, Item** items){
         for(i=0; i<item_size; i++) free_item(items[i]);
 }
 
+/**won't free inside items**/
 public void free_result_set(ResultSet *resultSet){
         if(resultSet == NULL) return;
-        free(resultSet->items);
-        free(resultSet);
+        frees(2, resultSet->items, resultSet);
 }
 
 /** free all items inside result set **/
 public void destory_result_set(ResultSet *resultSet){
         if(resultSet == NULL) return;
         free_item_array(resultSet->size, resultSet->items);
-        free(resultSet->items);
-        free(resultSet);
+        frees(2, resultSet->items, resultSet);
 }
 
 public int cmp_item(const void* item1_void, const void* item2_void){
@@ -300,6 +287,7 @@ public ResultSet* found_items_by_timestamp(int size, Item** items, int begin_tim
         return resultSet;
 }
 
+/** the caller need to make sure the result set is not empty**/
 public Key* get_last_key(ResultSet* resultSet){
         return get_key(resultSet->items[resultSet->size-1]);
 }
@@ -308,8 +296,9 @@ public Key* get_first_key(ResultSet* resultSet){
         return get_key(resultSet->items[0]);
 }
 
+/** input items will be inserted into a new result set **/
 public ResultSet *m_create_result_set(int item_size, Item **items){
-        ResultSet *resultSet = malloc(sizeof(ResultSet));
+        ResultSet *resultSet = malloc2(sizeof(ResultSet));
         cpy(resultSet->magic, RESULT_SET_MAGIC);
         resultSet->size = item_size;
         resultSet->items = items;
@@ -323,21 +312,18 @@ public ResultSet *m_item_list_to_result_set(List* itemList){
 }
 
 public void print_result_set_in_nice_format(ResultSet* resultSet){
-        int i=0;
-        for(i=0; i<resultSet->size; i++){
-                Item *item = resultSet->items[i];
-                char *column_family =  get_column_family(item);
-                if(match(column_family, DEFAULT_COLUMN_FAMILY))
-                        printf("%s:%s ", get_column_qualifier(item), get_value(item));
-                else printf("%s.%s:%s ", column_family, get_column_qualifier(item), get_value(item));
-        }
-        printf("\n");
+		int i=0;
+		for(i=0; i<resultSet->size; i++){
+			Item *item = resultSet->items[i];
+			printf("%s:%s ", get_column_name(item), get_value(item));
+		}
+		printf("\n");
 }
 
 public ResultSet* m_combine_result_set(ResultSet* set0, ResultSet* set1){
         //init new ResultSetArray
         int total_size = set0->size + set1->size;
-        Item** items = malloc(sizeof(Item *) * total_size);
+        Item** items = malloc2(sizeof(Item *) * total_size);
         int i=0, j=0;
         //append array0
         for(i=0; i<set0->size; i++){
@@ -351,60 +337,10 @@ public ResultSet* m_combine_result_set(ResultSet* set0, ResultSet* set1){
         return newSet;
 }
 
-public List* get_unique_column_familys(ResultSet* resultSet){
-        List* unique_column_familys = list_create();
-        int i=0;
-        for(i=0; i<resultSet->size; i++){
-                char* column_family = resultSet->items[i]->key->column_family;
-                char* found = list_find(unique_column_familys, column_family, match_for_list_find);
-                if(found == NULL) list_append(unique_column_familys, m_cpy(column_family));
-        }
-        return unique_column_familys;
-}
-
-public ResultSet* filter_result_sets_by_colume_family(ResultSet* resultSet, char* column_family){
-        List* itemList = list_create();
-        int i=0;
-        for(i=0; i<resultSet->size; i++){
-                Item *item = resultSet->items[i];
-                if(match(item->key->column_family, column_family))
-                        list_append(itemList, item);
-        }
-        return m_item_list_to_result_set(itemList);
-}
-
-public void remove_legacy_items(ResultSet* resultSet){
-        List* clean_list = list_create();
-        int i=0, j=0, k=resultSet->size;
-        for(i=0; i<resultSet->size; i++){
-                Item *item = resultSet->items[i];
-                if(item == NULL) continue;
-                for(j=i+1;j<resultSet->size;j++){
-                        Item *nextItem = resultSet->items[j];
-                        if(nextItem == NULL) continue;
-                        if(match(get_column_family(item), get_column_family(nextItem))&&
-                                        match(get_column_qualifier(item), get_column_qualifier(nextItem))){
-                                if(get_timestamp(nextItem) > get_timestamp(item)){
-                                        //use the nextItem to replace item
-                                        resultSet->items[i] = nextItem;
-                                        item = resultSet->items[i];
-                                }
-                                //remove the next item
-                                resultSet->items[j] = NULL;
-                                free_item(resultSet->items[j]);
-                                k--;
-                        }
-                }
-                list_append(clean_list, item);
-        }
-        free_result_set(resultSet);
-        resultSet = m_item_list_to_result_set(clean_list);
-}
-
 #ifdef ITEM_TEST
 void testcase_for_result_set_to_byte(void){
         int index = 2;
-        Item** items = malloc(sizeof(Item *) * index);
+        Item** items = malloc2(sizeof(Item *) * index);
         items[0] = m_create_item("row1", "column_family", "column_qualifier", "value");
         items[1] = m_create_item("row2", "column_family", "column_qualifier", "value");
         ResultSet* resultSet = m_create_result_set(index, items);
@@ -418,7 +354,7 @@ void testcase_for_result_set_to_byte(void){
 
 void testcase_for_qsort_item(void){
         int index = 4;
-        Item** items = malloc(sizeof(Item *) * index);
+        Item** items = malloc2(sizeof(Item *) * index);
         items[0] = m_create_item("b","","","");
         items[1] = m_create_item("c","","","");
         items[2] = m_create_item("d","","","");
@@ -430,7 +366,7 @@ void testcase_for_qsort_item(void){
 void testcase_for_between_keys(void){
         char *keys[] = {"a","b", "c"};
         int index = 3;
-        Item** items = malloc(sizeof(Item *) * 3);
+        Item** items = malloc2(sizeof(Item *) * 3);
         int i = 0;
         for(i = 0; i < index; i++) items[i] = m_create_item(keys[i], "", "", "");
         assert(!between_keys(items[0]->key, items[1]->key, keys[2]));
@@ -440,7 +376,7 @@ void testcase_for_between_keys(void){
 void testcase_for_bsearch_item_index_by_row_key(void){
         char *tests[] = {"a","b", "c","d","e"};
         int index = 5;
-        Item** items = malloc(sizeof(Item *) * index);
+        Item** items = malloc2(sizeof(Item *) * index);
         int i = 0;
         for(i = 0; i < index; i++) items[i] = m_create_item(tests[i], "", "", "");
         printf("the result:%d\n", bsearch_item_index_by_row_key(0, index-1, items, tests[3]));
@@ -451,7 +387,7 @@ void testcase_for_cmp_key_with_row_key(void){
         char *test2 = "abd";
         char *test3 = "abe";
 
-        Key *key = malloc(sizeof(Key));
+        Key *key = malloc2(sizeof(Key));
         key->row_key = m_cpy(test1);
         assert(cmp_key_with_row_key(key, test1)==0);
         assert(cmp_key_with_row_key(key, test2)!=0);
@@ -460,16 +396,16 @@ void testcase_for_cmp_key_with_row_key(void){
 }
 
 void print_item(Item *item){
-        printf("rowkey:%s\n", get_row_key(item));
-        printf("column_family:%s\n", get_column_family(item));
-        printf("column_qualifier:%s\n", get_column_qualifier(item));
-        printf("time_stamp:%d\n", get_timestamp(item));
-        printf("value:%s\n", get_value(item));
-        printf("\n");
+		printf("rowkey:%s\n", get_row_key_item(item));
+		printf("column_family:%s\n", get_column_family(item));
+		printf("column_qualifier:%s\n", get_column_name(item));
+		printf("time_stamp:%d\n", get_timestamp(item));
+		printf("value:%s\n", get_value(item));
+		printf("\n");
 }
 
 void testcase_for_result_set_serializing(void){
-        ResultSet* resultSet1 = malloc(sizeof(ResultSet));
+        ResultSet* resultSet1 = malloc2(sizeof(ResultSet));
         char *row_key1 = "m1";
         char *column_family1 = "cf1";
         char *column_qualifier1 = "name";
@@ -481,7 +417,7 @@ void testcase_for_result_set_serializing(void){
         Item *item1 = m_create_item(row_key1, column_family1, column_qualifier1, value1);
         Item *item2 = m_create_item(row_key2, column_family2, column_qualifier2, value2);
         resultSet1->size = 2;
-        resultSet1->items = malloc(sizeof(Item *) * 2);
+        resultSet1->items = malloc2(sizeof(Item *) * 2);
         resultSet1->items[0] = item1;
         resultSet1->items[1] = item2;
         Buf *buf = result_set_to_byte(resultSet1);
