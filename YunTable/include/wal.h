@@ -5,15 +5,6 @@
 #include "list.h"
 #include "item.h"
 
-/**
- * The Mechanism of wal:
- *    1. In the runtime, will collect the updated items from all the tablets.
- *    2. Once the memstore flushed to the yfile, the legacy log will be marked as flushed.
- *    3. During the system startup, the wal will load the unflushed data to all the tablet.
- *    4. Sometime, the log will refresh the
- *
- **/
-
 typedef struct _Wal Wal;
 
 typedef struct _WalItem WalItem;

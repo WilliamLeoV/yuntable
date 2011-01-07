@@ -1,8 +1,8 @@
-#include "global.h"
 #include "utils.h"
 #include "list.h"
 #include "item.h"
 #include "memstore.h"
+#include "malloc2.h"
 
 #define ONE_ALLOCATED_SIZE 10000
 #define DEFAULT_SORT_WATERMARK 10000
@@ -13,12 +13,12 @@
 
 struct _Memstore{
         Item** items; /**used array for better searching and sorting, since the store will be very big**/
-        int used_size;
-        int sorted_size;  /** the cursor for defining the sorted mark **/
-        int allocated_size; /** the size of items has been allocated in memory, the default is 500000 **/
-        int max_allocated_size; /** the threshold for flushing, and will be assigned by the tablet **/
-        int begin_timestamp; /* the least item timestamp from memstore's all items */
-        int end_timestamp; /* the last item timestamp from memstore's all items */
+        size_t used_size;
+        size_t sorted_size;  /** the cursor for defining the sorted mark **/
+        size_t allocated_size; /** the size of items has been allocated in memory, the default is 500000 **/
+        size_t max_allocated_size; /** the threshold for flushing, and will be assigned by the tablet **/
+        long long begin_timestamp; /* the least item timestamp from memstore's all items */
+        long long end_timestamp; /* the last item timestamp from memstore's all items */
 };
 
 private int generate_random_allocated_size(){
@@ -30,15 +30,8 @@ private int generate_random_allocated_size(){
 }
 
 public Memstore* init_memstore(){
-        Memstore *memstore = malloc(sizeof(Memstore));
-        if (!memstore) {
-            return NULL;
-        }
-        memstore->items = malloc(sizeof(Item *) * ONE_ALLOCATED_SIZE);
-        if (!memstore->items) {
-            free(memstore);
-            return NULL;
-        }
+        Memstore *memstore = malloc2(sizeof(Memstore));
+        memstore->items = malloc2(sizeof(Item *) * ONE_ALLOCATED_SIZE);
         memstore->allocated_size = ONE_ALLOCATED_SIZE;
         memstore->used_size = 0;
         memstore->sorted_size = 0;
@@ -57,7 +50,7 @@ public boolean memstore_full(Memstore* memstore){
 private Memstore* enlarge_memstore(Memstore *memstore){
         Item** items;
         int target_size = memstore->allocated_size + ONE_ALLOCATED_SIZE;
-        items = realloc(memstore->items, target_size * sizeof(Item *));
+        items = realloc2(memstore->items, target_size * sizeof(Item *));
         if (items) {
             memstore->items = items;
             memstore->allocated_size = target_size;
@@ -71,7 +64,7 @@ public void append_memstore(Memstore *memstore, Item *item){
         if(memstore->used_size == memstore->allocated_size) {
             if (enlarge_memstore(memstore) == NULL) {
                 printf("Warning: Failed to enlarge memstore\r\n");
-                /* XXX what should we do with the item */
+                //TODO link this situation to a exception handler
                 return;
             }
         }
@@ -80,13 +73,13 @@ public void append_memstore(Memstore *memstore, Item *item){
         //update the memstore's timestamp
         long long timestamp = get_timestamp(item);
         if(memstore->begin_timestamp == 0 || timestamp < memstore->begin_timestamp )
-                memstore->begin_timestamp = timestamp;
+			memstore->begin_timestamp = timestamp;
         if(memstore->end_timestamp == 0 || timestamp > memstore->end_timestamp)
-                memstore->end_timestamp = timestamp;
+			memstore->end_timestamp = timestamp;
 }
 
-public ResultSet* get_all_items_memstore(Memstore *memstore){
-        return m_create_result_set(memstore->used_size, memstore->items);
+public ResultSet* get_all_sorted_items_memstore(Memstore *memstore){
+        return m_create_result_set(memstore->sorted_size, memstore->items);
 }
 
 /** if the machine powers off during reset, may have chance of losing data, TODO fix it**/
@@ -104,8 +97,7 @@ public Memstore* reset_memstore(Memstore *memstore, int flushed_size){
         }
         //recreate memstore
         free_item_array(memstore->used_size, memstore->items);
-        free(memstore->items);
-        free(memstore);
+        frees(2, memstore,memstore->items);
         memstore = init_memstore();
         //append the new added_item_list to the memstore
         Item* item = NULL;
@@ -142,24 +134,19 @@ public ResultSet* query_memstore_by_row_key(Memstore* memstore, char* row_key){
         if (set1 && set2) {
             combined_set = m_combine_result_set(set1, set2);
         }
-        free(set1);
-        free(set2);
+        frees(2, set1, set2);
         return combined_set;
 }
 
 public ResultSet* query_memstore_by_timestamp(Memstore* memstore, int begin_timestamp, int end_timestamp){
         List* itemList = list_create();
-
-        if (!itemList) {
-            return NULL;
-        }
         if(match_by_timestamps(begin_timestamp, end_timestamp, memstore->begin_timestamp, memstore->end_timestamp)){
-                int i=0;
-                for(i=0; i<memstore->used_size; i++){
-                        Item* item = memstore->items[i];
-                        if(between_timestamps(get_timestamp(item), begin_timestamp, end_timestamp))
-                                list_append(itemList, item);
-                }
+			int i=0;
+			for(i=0; i<memstore->used_size; i++){
+				Item* item = memstore->items[i];
+				if(between_timestamps(get_timestamp(item), begin_timestamp, end_timestamp))
+					list_append(itemList, item);
+			}
         }
         return m_item_list_to_result_set(itemList);
 }
@@ -169,4 +156,10 @@ public void sort_memstore(Memstore* memstore){
         int sorted_size = memstore->used_size;
         qsort(memstore->items, sorted_size, sizeof(Item *), cmp_item);
         memstore->sorted_size = sorted_size;
+}
+
+public char* get_memstore_metadata(Memstore* memstore){
+		char* metadata = mallocs(1000);
+		sprintf(metadata, "The Number of Item inside memstore: %d.\n", memstore->used_size);
+		return metadata;
 }
