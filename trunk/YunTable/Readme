@@ -18,11 +18,10 @@
 
 				YunTable v0.8 Readme
 
-YunTable is a BigTable clone that written in C, and it will be further optimized base on
+YunTable is a distributed key-value store that written in C, and it can be further optimized base on
 Cloud Computing needs.
 
-Below are the tutorial for YunTable(Only tested at Ubuntu 10.04):
-
+Below are the tutorial for YunTable(Only tested at Ubuntu 10.10):
 
 Shell Part(under the project root):
 sh build.sh
