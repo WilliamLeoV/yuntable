@@ -18,7 +18,7 @@
 
 				YunTable v0.8 Readme
 
-YunTable is a distributed key-value store that written in C, and it can be further optimized base on
+YunTable is a distributed key-value store that written in C, and it can be further optimized base on 
 Cloud Computing needs.
 
 Below are the tutorial for YunTable(Only tested at Ubuntu 10.10):
