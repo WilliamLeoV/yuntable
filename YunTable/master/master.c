@@ -40,9 +40,9 @@ private void update_region_info(RegionInfo* regionInfo){
 	    destory_rpc_response(rpcResponse);
 }
 //TODO check the effectiveness
-private int cmp_region_info(void* regionInfo1_void, void* regionInfo2_void){
-		RegionInfo* regionInfo1 = (RegionInfo*)regionInfo1_void;
-		RegionInfo* regionInfo2 = (RegionInfo*)regionInfo2_void;
+private int cmp_region_info(void const* regionInfo1_void, void const* regionInfo2_void){
+		RegionInfo const* regionInfo1 = (RegionInfo const*)regionInfo1_void;
+		RegionInfo const* regionInfo2 = (RegionInfo const*)regionInfo2_void;
 		if(regionInfo1->connecting == regionInfo2->connecting){
 			return regionInfo1->avail_space > regionInfo2->avail_space;
 		}else
