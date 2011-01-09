@@ -36,4 +36,5 @@ add table:people
 put table:people row:me name:"ike" sex:"male"
 get table:people row:me
 show table:people
+show master
 quit
