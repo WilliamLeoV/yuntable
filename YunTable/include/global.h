@@ -64,6 +64,8 @@ typedef unsigned short boolean;
 
 #define DEFAULT_FLUSH_MEMSTORE_INTERVAL 1 * 60 /** one minute(for testing) to flush memstore content to store file **/
 
+#define LINE_BUF_SIZE 1000 //Means the max size of one line
+
 #define NULL_STRING "NULL"
 
 #define FOLDER_SEPARATOR '/'
