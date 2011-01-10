@@ -22,11 +22,9 @@
 #define TABLE_KEY "table"
 
 #define DEFAULT_YUNTABLE_CLI_PREFIX "yuncli:"
-//the unit is MB
-#define MIN_DISK_AVAIL_SPACE 10
+
 //the unit of below two items are sec
 #define DEFAULT_CLI_DAEMON_SLEEP_INTERVAL 10 * 60
-#define CLI_BUF_SIZE 10000
 
 typedef struct _CliCache{
 		char* conf_path; /** default place is conf/cli.conf **/
@@ -50,7 +48,8 @@ private TableInfo* get_table_info_from_master(char* master_conn, char* table_nam
         List* params = generate_charactor_params(1, table_name);
         RPCRequest* rpcRequest = create_rpc_request(GET_TABLE_INFO_MASTER_CMD, params);
         RPCResponse* rpcResponse = connect_conn(master_conn, rpcRequest);
-        if(get_status_code(rpcResponse) == SUCCESS){
+        int status_code = get_status_code(rpcResponse);
+        if(status_code == SUCCESS){
         	char* table_info_string = get_result(rpcResponse);
             if(table_info_string != NULL){
     			List* lines = generate_list_by_token(table_info_string, LINE_SEPARATOR);
@@ -58,7 +57,7 @@ private TableInfo* get_table_info_from_master(char* master_conn, char* table_nam
     			list_destory(lines, just_free);
             }
         }else{
-        	printf("Sad News! The Master node has problem!!!\n");
+        	printf("Sad News! The Master node has problem: %s\n", get_error_message(status_code));
         }
         destory_rpc_request(rpcRequest);
         destory_rpc_response(rpcResponse);
@@ -94,10 +93,11 @@ private boolean create_new_table(char* master_conn, char* table_name){
         List* params = generate_charactor_params(1, table_name);
         RPCRequest* rpcRequest = create_rpc_request(CREATE_NEW_TABLE_MASTER_CMD, params);
         RPCResponse* rpcResponse = connect_conn(master_conn, rpcRequest);
-	    if(get_status_code(rpcResponse) == SUCCESS || get_result_length(rpcResponse) > 0){
+        int status_code = get_status_code(rpcResponse);
+	    if(status_code == SUCCESS){
 	    	result = stob(get_result(rpcResponse));
 	    }else{
-	    	printf("Sad News! The Master node has problem!!!\n");
+	    	printf("Sad News! The Master node has problem:%s\n", get_error_message(status_code));
 	    }
 	    destory_rpc_request(rpcRequest);
 	    destory_rpc_response(rpcResponse);
@@ -109,10 +109,11 @@ private boolean add_new_region(char* master_conn, char* region_conn){
 		List* params = generate_charactor_params(1, region_conn);
         RPCRequest* rpcRequest = create_rpc_request(ADD_NEW_REGION_MASTER_CMD, params);
 		RPCResponse* rpcResponse = connect_conn(master_conn, rpcRequest);
-	    if(get_status_code(rpcResponse) == SUCCESS || get_result_length(rpcResponse) > 0){
+		int status_code = get_status_code(rpcResponse);
+	    if(status_code == SUCCESS || get_result_length(rpcResponse) > 0){
 	    	result = stob(get_result(rpcResponse));
 	    }else{
-	    	printf("Sad News! The Master node has problem!!!\n");
+	    	printf("Sad News! The Master node has problem:%s\n", get_error_message(status_code));
 	    }
 		destory_rpc_request(rpcRequest);
 		destory_rpc_response(rpcResponse);
@@ -127,10 +128,11 @@ private boolean check_problem_region(char* problem_region_conn){
 		List* params = generate_charactor_params(1, problem_region_conn);
 	    RPCRequest* rpcRequest = create_rpc_request(CHECK_PROBLEM_REGION_MASTER_CMD, params);
 		RPCResponse* rpcResponse = connect_conn(problem_region_conn, rpcRequest);
-	    if(get_status_code(rpcResponse) == SUCCESS || get_result_length(rpcResponse) > 0){
+		int status_code = get_status_code(rpcResponse);
+	    if(status_code == SUCCESS){
 	    	return stob(get_result(rpcResponse));
 		}else{
-			printf("Sad News! The Master node has problem too!!!\n");
+			printf("Sad News! The Master node has problem:%s!\n", get_error_message(status_code));
 		}
 		destory_rpc_request(rpcRequest);
 		destory_rpc_response(rpcResponse);
@@ -209,9 +211,10 @@ private char* batch_put_data_to_table(CliCache* cliCache, TableInfo* tableInfo, 
 			add_param(params, get_buf_index(buf), get_buf_data(buf));
 			RPCRequest* rpcRequest = create_rpc_request(PUT_DATA_REGION_CMD, params);
 		    RPCResponse* rpcResponse = connect_conn(tabletInfo->regionInfo->conn, rpcRequest);
-			if(get_status_code(rpcResponse) != SUCCESS || get_result_length(rpcResponse) <= 0
-							|| stob(get_result(rpcResponse)) == false ){
-				printf("The Connection to Region Node %s have encountered some problems.\n", tabletInfo->regionInfo->conn);
+		    int status_code = get_status_code(rpcResponse);
+			if(status_code != SUCCESS || stob(get_result(rpcResponse)) == false ){
+				printf("The Connection to Region Node %s have encountered some problem:%s.\n",
+						tabletInfo->regionInfo->conn, get_error_message(status_code));
 				msg = ERR_MSG_PUT;
 				if(check_problem_region(tabletInfo->regionInfo->conn) == true){
 					printf("The Region Node %s has some problem, and is fixing now.\n", tabletInfo->regionInfo->conn);
@@ -269,7 +272,8 @@ private ResultSet* query_table(CliCache *cliCache, TableInfo* tableInfo, char *r
 				List* params = generate_charactor_params(2, tableInfo->table_name, row_key);
 				RPCRequest* rpcRequest = create_rpc_request(QUERY_ROW_REGION_CMD, params);
 				RPCResponse* rpcResponse = connect_conn(tabletInfo->regionInfo->conn, rpcRequest);
-				if(get_status_code(rpcResponse) == SUCCESS || get_result_length(rpcResponse) != 0){
+				int status_code = get_status_code(rpcResponse);
+				if(status_code == SUCCESS || get_result_length(rpcResponse) != 0){
 					ResultSet* set1 = (ResultSet*) byte_to_result_set(get_result(rpcResponse));
 					ResultSet* set2 = m_combine_result_set(resultSet, set1);
 
@@ -277,7 +281,8 @@ private ResultSet* query_table(CliCache *cliCache, TableInfo* tableInfo, char *r
 					free_result_set(resultSet);
 					resultSet = set2;
 				}else{
-					printf("The Connection to Region Node %s have encountered some problems.\n", tabletInfo->regionInfo->conn);
+					printf("The Connection to Region Node %s have encountered some problems:%s.\n",
+							tabletInfo->regionInfo->conn, get_error_message(status_code));
 					if(check_problem_region(tabletInfo->regionInfo->conn) == true){
 						printf("The Region Node %s has some problem, and is fixing now.\n", tabletInfo->regionInfo->conn);
 					}
@@ -322,45 +327,75 @@ public char* get(Tokens* space_tokens){
         return msg;
 }
 
-
-private void get_table_metadata(TableInfo* tableInfo){
+private char* get_table_metadata(TableInfo* tableInfo){
+		char* result = NULL;
 		printf("The Meta Info about the Table:%s\n", tableInfo->table_name);
-		printf("\n");
 		int i=0, rq_size=list_size(tableInfo->replicaQueueList);
+		printf("The Number of replica queue:%d\n", rq_size);
+
+		//Iterating the Replica Queues
 		for(i=0; i<rq_size; i++){
 			printf("The Meta Info from Replica Queue %d.\n", i);
 			printf("\n");
 			ReplicaQueue* replicaQueue = list_get(tableInfo->replicaQueueList, i);
 			int k=0, tt_size=list_size(replicaQueue->tabletInfoList);
+
+			//Iterating the Tablet Infos
 			for(k=0; k<tt_size; k++){
 				TabletInfo* tabletInfo = list_get(replicaQueue->tabletInfoList, k);
 				printf("The Meta Info from Tablet %d at Region %s.\n", k, tabletInfo->regionInfo->conn);
 				List* params = generate_charactor_params(1, tableInfo->table_name);
 				RPCRequest* rpcRequest = create_rpc_request(GET_METADATA_REGION_CMD, params);
 			    RPCResponse* rpcResponse = connect_conn(tabletInfo->regionInfo->conn, rpcRequest);
-				if(get_status_code(rpcResponse) == SUCCESS || get_result_length(rpcResponse) > 0){
-					printf("%s", get_result(rpcResponse));
+			    int status_code = get_status_code(rpcResponse);
+				if(status_code == SUCCESS){
+					result = get_result(rpcResponse);
 				}else{
-					printf("Sad News! The Region node has some connection problem!!!\n");
+					printf("Sad News! The Region node has some problem:%s.\n", get_error_message(status_code));
 				}
 				destory_rpc_request(rpcRequest);
 				destory_rpc_response(rpcResponse);
 			}
 		}
+		return result;
 }
 
-/** sample cmd: show table:people **/
+private char* get_master_metadata(CliCache* cliCache){
+		char* result = NULL;
+		RPCRequest* rpcRequest = create_rpc_request(GET_METADATA_MASTER_CMD, NULL);
+		RPCResponse* rpcResponse = connect_conn(cliCache->master_conn, rpcRequest);
+		int status_code = get_status_code(rpcResponse);
+		if(status_code == SUCCESS || get_result_length(rpcResponse) > 0){
+			result = get_result(rpcResponse);
+		}else{
+			printf("Sad News! The Master node has problem:%s.\n", get_error_message(status_code));
+		}
+		destory_rpc_request(rpcRequest);
+		destory_rpc_response(rpcResponse);
+		return result;
+}
+
+
+
+/** sample cmd:
+ * 	 1) show table:people // which retrieve the table's metadata
+ *   2) show master  //which retrieve the master's metadata
+ * **/
 public char* show(Tokens* space_tokens){
-	   char *table_name = get_table_name(space_tokens->tokens[1]);
-		if(table_name == NULL) {
-			return ERR_MSG_NO_TABLE_NAME;
+		//Go to Show Master procedure or Show Table
+		if(match(space_tokens->tokens[1], MASTER_KEY)){
+			return get_master_metadata(cliCacheInst);
+		}else{
+			char *table_name = get_table_name(space_tokens->tokens[1]);
+			if(table_name == NULL) {
+				return ERR_MSG_CMD_NOT_COMPLETE;
+			}
+			TableInfo *tableInfo = search_and_update_table_info(cliCacheInst, table_name);
+			if (tableInfo == NULL) {
+				return ERR_MSG_TABLE_NOT_CREATED;
+			}
+			return get_table_metadata(tableInfo);
 		}
-		TableInfo *tableInfo = search_and_update_table_info(cliCacheInst, table_name);
-		if (tableInfo == NULL) {
-			return ERR_MSG_TABLE_NOT_CREATED;
-		}
-		get_table_metadata(tableInfo);
-		return NULL;
 }
 
 public char* process(char *cmd){
@@ -395,7 +430,8 @@ private void help(void){
         printf("3) put table:people row:me name:\"ike\" sex:\"male\"\n");
         printf("4) get table:people row:me\n");
         printf("5) show table:people\n");
-        printf("6) quit\n");
+        printf("6) show master\n");
+        printf("7) quit\n");
 }
 
 public void load_cli_cache(char* conf_path){
@@ -423,10 +459,10 @@ public void start_cli_daemon(){
         //step 2. print help
         help();
         //step 3. start the cli and receive inputted cmd
-        char buf[CLI_BUF_SIZE];
+        char buf[LINE_BUF_SIZE];
         while(1){
 			printf(DEFAULT_YUNTABLE_CLI_PREFIX);
-			cli_str = fgets(buf, CLI_BUF_SIZE, stdin);
+			cli_str = fgets(buf, LINE_BUF_SIZE, stdin);
 			if (!cli_str) {
 				printf("get cmd error %d\r\n", ferror(stdin));
 				continue; /* continue or break */
