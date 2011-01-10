@@ -31,7 +31,6 @@ public char* m_get_buf_string(Buf *buf){
 		return strncpy(string, buf->data, buf->index);
 }
 
-
 public Buf* init_buf(){
         Buf *buf = malloc2(sizeof(Buf));
         buf->index = 0;
@@ -43,10 +42,10 @@ public Buf* init_buf(){
 public void enlarge_buf(Buf *buf, int size){
         int required_len = buf->index + size;
         if(buf->allocated_size < required_len){
-                int target_len = buf->allocated_size * BUF_GROWTH_FACTOR;
-                if(target_len < required_len) target_len = required_len * BUF_GROWTH_FACTOR;
-                buf->allocated_size = target_len;
-                buf->data = realloc2(buf->data, buf->allocated_size);
+			int target_len = buf->allocated_size * BUF_GROWTH_FACTOR;
+			if(target_len < required_len) target_len = required_len * BUF_GROWTH_FACTOR;
+			buf->allocated_size = target_len;
+			buf->data = realloc2(buf->data, buf->allocated_size);
         }
 }
 
@@ -112,7 +111,7 @@ public short buf_load_short(Buf* buf){
 
 public void destory_buf(Buf* buf){
         if(buf != NULL){
-                frees(2, buf, buf->data);
+        	frees(2, buf, buf->data);
         }
 }
 
