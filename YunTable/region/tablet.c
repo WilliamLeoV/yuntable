@@ -31,6 +31,12 @@ struct _Tablet{
 #define TABLE_EXT ".table"
 #define YFILE_EXT ".yfile"
 
+
+private int extract_tablet_id(char *table_folder){
+		char* temp = move_pointer(table_folder, sizeof(TABLET_FOLDER_PREFIX)-1);
+		return atoi(temp);
+}
+
 public short get_tablet_id(Tablet* tablet){
 		return tablet->id;
 }
@@ -47,11 +53,12 @@ public char* get_tablet_folder(Tablet* tablet){
 		return tablet->folder;
 }
 
-private Tablet* init_tablet_struct(char *tablet_folder){
+private Tablet* init_tablet_struct(int tablet_id, char *tablet_folder){
 		Tablet *tablet = malloc2(sizeof(Tablet));
+		tablet->id = tablet_id;
 		tablet->folder = m_cpy(tablet_folder);
 		//init memstore and timestamp
-		tablet->memstore = init_memstore();
+		tablet->memstore = init_memstore(tablet_id);
 		tablet->yfileList = list_create();
 		tablet->used_size = 0;
 		tablet->last_flushed_id = 0;
@@ -61,7 +68,9 @@ private Tablet* init_tablet_struct(char *tablet_folder){
 }
 
 public Tablet* load_tablet(char *tablet_folder){
-		Tablet *tablet = init_tablet_struct(tablet_folder);
+		logg(INFO, "Loading the tablet at %s.", tablet_folder);
+		int table_id = extract_tablet_id(tablet_folder);
+		Tablet *tablet = init_tablet_struct(table_id, tablet_folder);
 		tablet->table_name = m_get_file_name_by_ext(tablet->folder, TABLE_EXT);
 		List* yfiles = get_files_path_by_ext(tablet->folder, YFILE_EXT);
 		char* yfile_path = NULL;
@@ -70,15 +79,13 @@ public Tablet* load_tablet(char *tablet_folder){
 			list_append(tablet->yfileList, yfile);
 			tablet->used_size += get_file_size(yfile_path) / MB;
 		}
-		short tablet_id = atoi(move_pointer(tablet_folder, sizeof(TABLET_FOLDER_PREFIX)-1));
-		tablet->id = tablet_id;
 		list_destory(yfiles, just_free);
 		return tablet;
 }
 
 public Tablet* create_tablet(int tablet_id, char *tablet_folder, char *table_name){
-		Tablet *tablet = init_tablet_struct(tablet_folder);
-		tablet->id = tablet_id;
+		logg(INFO, "Creating a new tablet from table %s at %s.", table_name, tablet_folder);
+		Tablet *tablet = init_tablet_struct(tablet_id, tablet_folder);
 		tablet->table_name = m_cpy(table_name);
 		mkdir(tablet_folder, S_IRWXU);
 		char* table_name_file_path = m_cats(4, tablet_folder, FOLDER_SEPARATOR_STRING, tablet->table_name, TABLE_EXT);
@@ -198,12 +205,13 @@ private char* get_next_yfile_path(Tablet *tablet){
 		return next_yfile_path;
 }
 
-public void refresh_tablet(Tablet *tablet){
+public void refresh_tablet(Tablet *tablet, int hotnessValue){
+		logg(INFO, "Refreshing for tablet %d now.", tablet->id);
 		//YFile Data Block Cache Refresh Part
 		int i=0, size=list_size(tablet->yfileList);
 		for(i=0; i<size; i++){
 			YFile *yfile = list_get(tablet->yfileList, i);
-			refresh_yfile_data_block_cache(yfile);
+			refresh_yfile_data_block_cache(yfile, hotnessValue);
 		}
 
 		//Memstore Flushing Part
@@ -227,21 +235,21 @@ public void refresh_tablet(Tablet *tablet){
 }
 
 private int get_disk_usage(Tablet *tablet){
-	int disk_usage = 1;
-	DIR *tabletFolder = opendir(tablet->folder);
-	struct dirent *dp;
-	while ((dp = readdir(tabletFolder)) != NULL) {
-		//if d_type is 4, means it is a dir
-		if(dp->d_type != 4){
-			char *file_path = m_cats(3, tabletFolder, FOLDER_SEPARATOR_STRING, dp->d_name);
-			int file_size = get_file_size(file_path);
-			logg(INFO, "The file %s's disk_usage:%d\n", dp->d_name, file_size);
-			disk_usage += file_size/MB;
-			free2(file_path);
+		int disk_usage = 1;
+		DIR *tabletFolder = opendir(tablet->folder);
+		struct dirent *dp;
+		while ((dp = readdir(tabletFolder)) != NULL) {
+			//if d_type is 4, means it is a dir
+			if(dp->d_type != 4){
+				char *file_path = m_cats(3, tabletFolder, FOLDER_SEPARATOR_STRING, dp->d_name);
+				int file_size = get_file_size(file_path);
+				logg(INFO, "The file %s's disk_usage:%d\n", dp->d_name, file_size);
+				disk_usage += file_size/MB;
+				free2(file_path);
+			}
 		}
-	}
-	closedir(tabletFolder);
-	return disk_usage;
+		closedir(tabletFolder);
+		return disk_usage;
 }
 
 /** Not only will calculate the total disk usage, will also update the size at tablet instance **/

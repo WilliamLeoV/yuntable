@@ -37,7 +37,7 @@ public ResultSet* query_tablet_all(Tablet *tablet);
 
 public char* get_metadata_tablet(Tablet *tablet);
 
-public void refresh_tablet(Tablet *tablet);
+public void refresh_tablet(Tablet *tablet, int hotnessValue);
 
 public int get_used_size_tablet(Tablet *tablet);
 

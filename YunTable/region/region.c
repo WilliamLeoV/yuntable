@@ -9,25 +9,27 @@
 #include "log.h"
 #include "buf.h"
 
-#define DEFAULT_FLUSH_CHECK_INTERVAL 10 * 60
-#define DEFAULT_REGION_MAX_SIZE 10000
+#define DEFAULT_REGION_FLUSH_CHECK_INTERVAL 600 //10min
+
+#define DEFAULT_HOTNESS_VALUE 3600 //One Hour
 
 #define DEFAULT_WAL_FILE_PATH "wal.log"
 
 #define REGION_FOLDER "."
-#define LAST_FLUSHED_ID_KEY "last_flushed_id"
-#define TIME_STAMP_DIV 60 * 60
-
+#define TIME_STAMP_DIV 60 * 60 //Used at sync job
 
 /** This struct will also be used at cli side**/
 typedef struct _Region{
 	char* conf_path;
 	int port;
 	int max_size; /** The UNIT is MB, the max size of disk usage has been defined in the conf file**/
-	int used_size; /** The UNIT is MB, the current disk usgae **/
+	int used_size; /** The UNIT is MB, the current disk usage **/
 	List* tabletList; /**only used in region server**/
+	int flush_check_interval;
+	int hotness_value; /** Defined the memory duration of data block **/
 	Wal* wal;
-	long incr_item_id; /** the id for putted item in the memstore and wal **/
+	long long incr_item_id; /** the id for putted item in the memstore and wal **/
+
 }Region;
 
 /**
@@ -40,8 +42,8 @@ typedef struct _Region{
 /** global singleton **/
 Region *regionInst = NULL;
 
-public long get_incr_item_id(){
-		long id = regionInst->incr_item_id;
+public long long get_incr_item_id(){
+		long long id = regionInst->incr_item_id;
 		regionInst->incr_item_id++;
 		return id;
 }
@@ -55,32 +57,33 @@ private Tablet* get_tablet(List* tabletList, char *table_name){
 		return found;
 }
 
+/** If the tablet has been found, the method will return NULL **/
 private Tablet* get_tablet_by_id(List* tabletList, int tablet_id){
-		Tablet *found = NULL, *tablet = NULL;
-		while((tablet = list_next(tabletList)) != NULL){
-			if(get_tablet_id(tablet) == tablet_id) found = tablet;
+		Tablet *tablet = NULL, *temp = NULL;
+		while((temp = list_next(tabletList)) != NULL){
+			if(get_tablet_id(temp) == tablet_id) tablet = temp;
 		}
 		list_rewind(tabletList);
-		return found;
+		return tablet;
 }
 
-private long get_last_flushed_id_from_conf(char* conf_path, char* tablet_folder){
-		long last_flushed_id = 0;
-		char* key = m_cats(3, tablet_folder, MID_SEPARATOR_STRING, LAST_FLUSHED_ID_KEY);
+private long long get_last_flushed_id_from_conf(char* conf_path, char* tablet_folder){
+		long long last_flushed_id = 0;
+		char* key = m_cats(3, tablet_folder, MID_SEPARATOR_STRING, CONF_LAST_FLUSHED_ID_KEY);
 		char* value = m_get_value_by_key(conf_path, key);
-		if(value != NULL) last_flushed_id = strtol(value, NULL, 10);
+		if(value != NULL) last_flushed_id = btoll(value);
 
 		frees(2, key, value);
 		return last_flushed_id;
 }
 
 private void flush_tablets_info(char* file_path, List* tabletList){
+		logg(INFO, "Flusing the all tablets Info to file %s.", file_path);
 		Tablet* tablet = NULL;
 		while((tablet = list_next(tabletList)) != NULL){
-			char* key = m_cats(3, get_tablet_folder(tablet), MID_SEPARATOR_STRING ,LAST_FLUSHED_ID_KEY);
+			char* key = m_cats(3, get_tablet_folder(tablet), MID_SEPARATOR_STRING ,CONF_LAST_FLUSHED_ID_KEY);
 			char* value = m_lltos(get_last_flushed_id(tablet));
 			flush_key_value(file_path, key, value);
-
 			frees(2, key, value);
 		}
 		list_rewind(tabletList);
@@ -89,20 +92,34 @@ private void flush_tablets_info(char* file_path, List* tabletList){
 private Region* init_region_struct(char *conf_path){
 		//init the local region
 		Region* region = malloc2(sizeof(Region));
-		region->port = DEFAULT_LOCAL_REGION_PORT;
+		region->conf_path = m_cpy(conf_path);
 		region->used_size = 0;
 		region->tabletList = list_create();
 		region->incr_item_id = 0;
-		region->conf_path = conf_path;
-
 		int port = get_int_value_by_key(conf_path, CONF_PORT_KEY);
-		if(port != 0) region->port = port;
-
+		if(port != INDEFINITE){
+			region->port = port;
+		}else{
+			region->port = DEFAULT_LOCAL_REGION_PORT;
+		}
+		int flush_check_interval = get_int_value_by_key(conf_path, CONF_FLUSH_CHECK_INTERVAL_KEY);
+		if(flush_check_interval != INDEFINITE){
+			region->flush_check_interval = flush_check_interval;
+		}else{
+			region->flush_check_interval = DEFAULT_REGION_FLUSH_CHECK_INTERVAL;
+		}
+		int hotness_value =  get_int_value_by_key(conf_path, CONF_HOTNESS_VALUE_KEY);
+		if(hotness_value != INDEFINITE){
+			region->hotness_value = hotness_value;
+		}else{
+			region->hotness_value = DEFAULT_HOTNESS_VALUE;
+		}
 		return region;
 }
 
 /** the method will reload wal log to tablet, and will return the max item id in wal log **/
 private int reload_wal_to_tablet(Wal* wal, List* tabletList){
+		logg(INFO, "Reloading the Wal Items to tablet.");
 		List* newWalItems = list_create();
 		int max = 0;
 		List* walItems = load_log_wal(wal);
@@ -111,7 +128,10 @@ private int reload_wal_to_tablet(Wal* wal, List* tabletList){
 			short tablet_id = get_tablet_id_wal_item(walItem);
 			long item_id = get_item_id_wal_item(walItem);
 			Tablet* tablet = get_tablet_by_id(tabletList, tablet_id);
-			//TODO pls handle if tablet has not been found
+			if(tablet == NULL){
+				logg(EMERG, "The Tablet %d not found!!!");
+				abort();
+			}
 			long last_flushed_id = get_last_flushed_id(tablet);
 			//if last_flushed_id == 0, means nothing has been flushed
 			if(item_id > last_flushed_id || last_flushed_id == 0){
@@ -128,6 +148,7 @@ private int reload_wal_to_tablet(Wal* wal, List* tabletList){
 }
 
 public void load_local_region(char *conf_path){
+		logg(INFO, "Loading the local region, the conf path is %s.", conf_path);
 		regionInst = init_region_struct(conf_path);
 		DIR *regionFolder = opendir(REGION_FOLDER);
   		struct dirent *dp = NULL;
@@ -157,10 +178,12 @@ public int available_space_region(void){
 }
 
 public boolean add_new_tablet_region(char *table_name){
+		logg(INFO, "Creating a new tablet at the local region for table %s.", table_name);
 		int tablet_id = list_size(regionInst->tabletList);
 		char* next_tablet_folder = m_cats(2, TABLET_FOLDER_PREFIX, m_itos(tablet_id));
 		Tablet *tablet = create_tablet(tablet_id, next_tablet_folder, table_name);
 		list_append(regionInst->tabletList, tablet);
+		logg(INFO, "The new tablet for table %s has been created.", table_name);
 		return true;
 }
 
@@ -168,7 +191,7 @@ public boolean put_data_region(char *table_name, ResultSet* resultSet){
 		Tablet *tablet = get_tablet(regionInst->tabletList, table_name);
 		int i=0;
 		short tablet_id = get_tablet_id(tablet);
-		for(i=0; i<resultSet->size;i++){
+		for(i=0; i<resultSet->size; i++){
 			long incr_item_id = get_incr_item_id();
 			Item* item = resultSet->items[i];
 			WalItem* walItem = create_wal_item(tablet_id, incr_item_id, item);
@@ -261,7 +284,7 @@ private void check_and_flush_region(void){
 		Tablet *tablet = NULL;
 		while((tablet = list_next(regionInst->tabletList)) != NULL){
 			used_size += get_used_size_tablet(tablet);
-			refresh_tablet(tablet);
+			refresh_tablet(tablet, regionInst->hotness_value);
 		}
 		list_rewind(regionInst->tabletList);
 		regionInst->used_size = used_size;
@@ -270,7 +293,7 @@ private void check_and_flush_region(void){
 
 void* flush_region_daemon_thread(void* nul){
 		while(1){
-			sleep(DEFAULT_FLUSH_CHECK_INTERVAL);
+			sleep(regionInst->flush_check_interval);
 			logg(INFO, "The interval is up, check and flush region now.");
 			check_and_flush_region();
 			logg(INFO, "Finish the checking.");
@@ -281,46 +304,78 @@ public RPCResponse* handler_region_request(char *cmd, List* params){
 		RPCResponse *rpcResponse = NULL;
 		if(match(ADD_NEW_TABLET_REGION_CMD, cmd)){
 			char* table_name = get_param(params, 0);
-			boolean bool = add_new_tablet_region(table_name);
-			rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
+			if(table_name == NULL){
+				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
+			}else{
+				boolean bool = add_new_tablet_region(table_name);
+				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
+			}
 		}else if(match(PUT_DATA_REGION_CMD, cmd)){
 			char* table_name = get_param(params, 0);
-			ResultSet* resultSet = byte_to_result_set(get_param(params, 1));
-			boolean bool = put_data_region(table_name, resultSet);
-			rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
+			byte* result_set_bytes = get_param(params, 1);
+			if(table_name == NULL || result_set_bytes == NULL){
+				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
+			}else{
+				ResultSet* resultSet = byte_to_result_set(result_set_bytes);
+				boolean bool = put_data_region(table_name, resultSet);
+				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
+			}
 		}else if(match(QUERY_ROW_REGION_CMD, cmd)){
 			char* table_name = get_param(params, 0);
 			char* row_key = get_param(params, 1);
-			ResultSet* resultSet = query_row_region(table_name, row_key);
-			Buf* buf = result_set_to_byte(resultSet);
-			rpcResponse = create_rpc_response(SUCCESS, get_buf_index(buf), get_buf_data(buf));
-			free_result_set(resultSet);
+			if(table_name == NULL || row_key == NULL){
+				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
+			}else{
+				ResultSet* resultSet = query_row_region(table_name, row_key);
+				Buf* buf = result_set_to_byte(resultSet);
+				rpcResponse = create_rpc_response(SUCCESS, get_buf_index(buf), get_buf_data(buf));
+				free_result_set(resultSet);
+			}
 		}else if(match(QUERY_ALL_REGION_CMD, cmd)){
 			char* table_name = get_param(params, 0);
-			ResultSet* resultSet = query_all_region(table_name);
-			Buf* buf = result_set_to_byte(resultSet);
-			rpcResponse = create_rpc_response(SUCCESS, get_buf_index(buf), get_buf_data(buf));
-			free_result_set(resultSet);
+			if(table_name == NULL){
+				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
+			}else{
+				ResultSet* resultSet = query_all_region(table_name);
+				Buf* buf = result_set_to_byte(resultSet);
+				rpcResponse = create_rpc_response(SUCCESS, get_buf_index(buf), get_buf_data(buf));
+				free_result_set(resultSet);
+			}
 		}else if(match(GET_METADATA_REGION_CMD, cmd)){
 			char* table_name = get_param(params, 0);
-			char* metadata = get_metadata_region(table_name);
-			rpcResponse = create_rpc_response(SUCCESS, strlen(metadata), metadata);
+			if(table_name == NULL){
+				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
+			}else{
+				char* metadata = get_metadata_region(table_name);
+				rpcResponse = create_rpc_response(SUCCESS, strlen(metadata), metadata);
+			}
 		}else if(match(AVAILABLE_SPACE_REGION_CMD, cmd)){
 			int avail_space = available_space_region();
 			char* result = m_itos(avail_space);
 			rpcResponse = create_rpc_response(SUCCESS, strlen(result), result);
 		}else if(match(TABLET_USED_SIZE_REGION_CMD, cmd)){
 			char* table_name = get_param(params, 0);
-			int used_size = tablet_used_size_region(table_name);
-			char* string = m_itos(used_size);
-			rpcResponse = create_rpc_response(SUCCESS, strlen(string), string);
+			if(table_name == NULL){
+				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
+			}else{
+				int used_size = tablet_used_size_region(table_name);
+				char* string = m_itos(used_size);
+				rpcResponse = create_rpc_response(SUCCESS, strlen(string), string);
+			}
 		}else if(match(START_SYNC_REGION_CMD, cmd)){
 			char* target_conn = get_param(params, 0);
 			char* table_name = get_param(params, 1);
-			long long begin_timestamp = get_param_int(params, 2);
-			long long end_timestamp = get_param_int(params, 3);
-			boolean bool =  start_sync_region(target_conn, table_name, begin_timestamp, end_timestamp);
-			rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
+			byte* begin_timestamp_bytes = get_param(params, 2);
+			byte* end_timestamp_bytes = get_param(params, 3);
+			if(target_conn == NULL || table_name == NULL || begin_timestamp_bytes == NULL
+					|| end_timestamp_bytes == NULL){
+				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
+			}else{
+				long long begin_timestamp = btoll(begin_timestamp_bytes);
+				long long end_timestamp = btoll(end_timestamp_bytes);
+				boolean bool =  start_sync_region(target_conn, table_name, begin_timestamp, end_timestamp);
+				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
+			}
 		}else if(match(GET_ROLE_CMD, cmd)){
 			rpcResponse = create_rpc_response(SUCCESS, strlen(REGION_KEY), m_cpy(REGION_KEY));
 		}
@@ -331,9 +386,13 @@ public void start_server_region(){
 		//Step 1. Start Flushing Thread
 		pthread_t flush_thread_id;
 		pthread_create(&flush_thread_id, NULL, flush_region_daemon_thread, (void*)NULL);
+		logg(INFO, "The Region flushing thread has started.");
 		//Step 2. Startup Region Server
-		//TODO if falied, will try another port
-		logg(INFO, "The region server is starting and will handle request.");
+		logg(INFO, "The Region server is starting at %d and will handle request.", regionInst->port);
+		logg(INFO, "The Region Conf File is at %s.", regionInst->conf_path);
+		logg(INFO, "The Region Flushing Checking Interval is %d.", regionInst->flush_check_interval);
+		logg(INFO, "The Region Hotness Value is %d.", regionInst->hotness_value);
+
 		startup(regionInst->port, handler_region_request);
 }
 
