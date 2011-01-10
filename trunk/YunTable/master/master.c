@@ -10,8 +10,8 @@
 #include "log.h"
 
 #define DEFAULT_DUPLICATE_NUM 3
-#define MIN_REGION_AVAILABLE_SIZE 1000
-#define DEFAULT_MASTER_DAEMON_SLEEP_INTERVAL 10 * 60
+#define MIN_REGION_AVAILABLE_SIZE 100 //Unit is MB
+#define DEFAULT_MASTER_FLUSH_CHECK_INTERVAL 600 //10Min
 
 typedef struct _Master{
 	char* conf_path;
@@ -19,6 +19,7 @@ typedef struct _Master{
 	int duplicate_num;
 	List* regionInfoList;
 	List* tableInfoList;
+	int flush_check_interval;
 }Master;
 
 /**global singleton **/
@@ -26,20 +27,23 @@ Master *masterInst = NULL;
 
 /* currently only update the available size of region info */
 private void update_region_info(RegionInfo* regionInfo){
-		//TODO handle the failure situation
 		regionInfo->connecting = true;
 		RPCRequest* rpcRequest = create_rpc_request(AVAILABLE_SPACE_REGION_CMD, NULL);
 		RPCResponse* rpcResponse = connect_conn(regionInfo->conn, rpcRequest);
-	    if(get_status_code(rpcResponse) == SUCCESS || get_result_length(rpcResponse) > 0){
+		int status_code = get_status_code(rpcResponse);
+	    if(status_code == SUCCESS){
 	    	regionInfo->avail_space = atoi(get_result(rpcResponse));
 	    }else{
+	    	logg(ISSUE, "The target region %s have some problem:%s.", regionInfo->conn,
+	    			get_error_message(status_code));
+	    	regionInfo->connecting = false;
 	    	//TODO need to use the async mode
 	    	check_problem_region_master(regionInfo->conn);
 	    }
 	    destory_rpc_request(rpcRequest);
 	    destory_rpc_response(rpcResponse);
 }
-//TODO check the effectiveness
+
 private int cmp_region_info(void const* regionInfo1_void, void const* regionInfo2_void){
 		RegionInfo const* regionInfo1 = (RegionInfo const*)regionInfo1_void;
 		RegionInfo const* regionInfo2 = (RegionInfo const*)regionInfo2_void;
@@ -49,18 +53,13 @@ private int cmp_region_info(void const* regionInfo1_void, void const* regionInfo
 			return regionInfo1->connecting > regionInfo2->connecting;
 }
 
-private RegionInfo* get_region_and_update(List* regionInfoList, int index){
-		//TODO may need to update region's avail size and sort
-		return list_get(regionInfoList, index);
-}
-
 /** If the method can not get correct tablet used size, the system will return INDEFINITE(-1) **/
 private int get_tablet_used_size(RegionInfo* regionInfo, char* table_name){
 		int tablet_used_size = INDEFINITE;
 		List* params = generate_charactor_params(1, table_name);
 		RPCRequest* rpcRequest = create_rpc_request(TABLET_USED_SIZE_REGION_CMD, params);
 		RPCResponse* rpcResponse = connect_conn(regionInfo->conn, rpcRequest);
-	    if(get_status_code(rpcResponse) == SUCCESS || get_result_length(rpcResponse) > 0){
+	    if(get_status_code(rpcResponse) == SUCCESS){
 	    	tablet_used_size = atoi(get_result(rpcResponse));
 	    }else{
 	    	//TODO need to use the async mode
@@ -82,10 +81,17 @@ private List* sort_region_info_list(List* regionInfoList){
 
 /* This cmd for registering a new region node */
 public boolean add_new_region_master(char* region_conn){
+		logg(INFO, "Adding a new Region %s.", region_conn);
 		//check if the region has existed
 		RegionInfo* regionInfo = get_region_info(masterInst->regionInfoList, region_conn);
-		if(regionInfo != NULL) return false;
-		if(!check_node_validity(region_conn, REGION_KEY)) return false;
+		if(regionInfo != NULL){
+			logg(ISSUE, "The Region %s has existed at the master!", region_conn);
+			return false;
+		}
+		if(!check_node_validity(region_conn, REGION_KEY)){
+			logg(ISSUE, "The Region %s can not be connected.", region_conn);
+			return false;
+		}
 		RegionInfo* newRegionInfo = create_region_info(region_conn);
 		update_region_info(newRegionInfo);
 		list_append(masterInst->regionInfoList, newRegionInfo);
@@ -99,13 +105,15 @@ private TabletInfo* create_new_tablet(RegionInfo *regionInfo, char* table_name){
 		List* params = generate_charactor_params(1, table_name);
 		RPCRequest* rpcRequest = create_rpc_request(ADD_NEW_TABLET_REGION_CMD, params);
 		RPCResponse* rpcResponse = connect_conn(regionInfo->conn, rpcRequest);
-		if(get_status_code(rpcResponse) == SUCCESS || get_result_length(rpcResponse) > 0){
-			boolean bool = stob(get_result(rpcResponse));
-			if(bool){
-				int begin_timestamp = time(0);
-				tabletInfo = create_tablet_info(regionInfo, begin_timestamp, 0);
-			}
+		int status_code = get_status_code(rpcResponse);
+		if(status_code == SUCCESS && stob(get_result(rpcResponse)) == true){
+			int begin_timestamp = time(0);
+			tabletInfo = create_tablet_info(regionInfo, begin_timestamp, 0);
 		}else{
+			logg(ISSUE, "The tablet for table %s can not be created at region %s.", table_name, regionInfo->conn);
+			if(status_code != SUCCESS){
+				logg(ISSUE, "The Potential cause: %s.", get_error_message(status_code));
+			}
 			//TODO need to use the async mode
 			check_problem_region_master(regionInfo->conn);
 		}
@@ -114,38 +122,57 @@ private TabletInfo* create_new_tablet(RegionInfo *regionInfo, char* table_name){
 		return tabletInfo;
 }
 
+/** If the method return true, means the region has some problem **/
+private boolean region_has_problem(RegionInfo* regionInfo){
+		if(regionInfo->connecting == false){
+			return true;
+		}else if(regionInfo->serving ==true && regionInfo->avail_space < MIN_REGION_AVAILABLE_SIZE){
+			return true;
+		}else{
+			return false;
+		}
+}
+
 public boolean create_new_table_master(char* table_name){
-		boolean result = false;
-		if(get_table_info(masterInst->tableInfoList, table_name) != NULL) return false;
+		logg(INFO, "Create a new Table %s.", table_name);
+		if(get_table_info(masterInst->tableInfoList, table_name) != NULL){
+			logg(ISSUE, "The Table %s has been created before.", table_name);
+			return false;
+		}
 		//Step 1. Create New Table Info Struct
 		TableInfo* tableInfo = create_table_info(table_name);
-		list_append(masterInst->tableInfoList, tableInfo);
 		//Step 2. Create Replica Queue
-		//TODO create Replica Queue base on duplicate number
-		ReplicaQueue* replicaQueue = create_replica_queue(0);
-		list_append(tableInfo->replicaQueueList, replicaQueue);
-		RegionInfo* regionInfo = get_region_and_update(masterInst->regionInfoList, 0);
-		TabletInfo* tabletInfo = create_new_tablet(regionInfo, table_name);
-		if(tabletInfo != NULL){
+		int i=0;
+		for(i=0; i<masterInst->duplicate_num; i++){
+			logg(INFO, "Creating the replica queue %d for table %s.", i, table_name);
+			ReplicaQueue* replicaQueue = create_replica_queue(i);
+			list_append(tableInfo->replicaQueueList, replicaQueue);
+			RegionInfo* regionInfo = list_get(masterInst->regionInfoList, i);
+			if(regionInfo == NULL || region_has_problem(regionInfo) == true){
+				logg(ISSUE, "Can not find good region node for table %s.", table_name);
+				return false;
+			}
+			TabletInfo* tabletInfo = create_new_tablet(regionInfo, table_name);
+			if(tabletInfo == NULL){
+				logg(ISSUE, "Can not create a tablet at region %s for table %s.", regionInfo->conn, table_name);
+				return false;
+			}
 			list_append(replicaQueue->tabletInfoList, tabletInfo);
-			result = true;
 		}
+		//If everything goes smoothly, the table will be added to master inst, and will be flushed
+		list_append(masterInst->tableInfoList, tableInfo);
 		flush_table_info_list(masterInst->conf_path, masterInst->tableInfoList);
-		return result;
+		return true;
 }
 
-private boolean region_has_problem(RegionInfo* regionInfo){
-		if(regionInfo->connecting == false) return true;
-		if(regionInfo->serving ==true && regionInfo->avail_space < MIN_REGION_AVAILABLE_SIZE) return true;
-		return false;
-}
-
-/* check if the replica queue is good or whether the probelsm region has been used in this queue  */
+/* check if the replica queue is good or whether the problem region has been used in this queue  */
 private boolean is_good_replica_queue(ReplicaQueue* replicaQueue, List* problemRegions){
 		int i=0, size=list_size(replicaQueue->tabletInfoList);
 		for(i=0; i<size; i++){
 			TabletInfo* tabletInfo = list_get(replicaQueue->tabletInfoList, i);
-			if(get_region_info(problemRegions, tabletInfo->regionInfo->conn)!=NULL) return false;
+			if(get_region_info(problemRegions, tabletInfo->regionInfo->conn)!=NULL){
+				return false;
+			}
 		}
 		return true;
 }
@@ -169,7 +196,9 @@ private List* find_src_tablets(TableInfo* tableInfo, TabletInfo* infectedTabletI
 }
 
 private boolean start_sync_job(char* src_conn, char* target_conn, char* table_name,
-		int begin_timestamp, int end_timestamp){
+		long long begin_timestamp, long long end_timestamp){
+		logg(INFO, "Starting the Sync job about table %s from %s to %s begin:%lld end:%lld.",
+				table_name, src_conn, target_conn, begin_timestamp, end_timestamp);
 		boolean result = false;
 		List* params = generate_charactor_params(2, target_conn, table_name);
 		add_int_param(params, begin_timestamp);
@@ -189,7 +218,8 @@ private boolean start_sync_job(char* src_conn, char* target_conn, char* table_na
 
 private boolean handle_infected_tablet(TabletInfo* infectedTabletInfo, ReplicaQueue* replicaQueue,
 		TableInfo* tableInfo, List* problemRegions, List* regionInfoList){
-		RegionInfo* firstRegionInfo = get_region_and_update(regionInfoList, 0);
+		RegionInfo* firstRegionInfo = list_get(regionInfoList, 0);
+		update_region_info(firstRegionInfo);
 		if(region_has_problem(firstRegionInfo)) return false;
 		TabletInfo* firstTabletInfo = create_new_tablet(firstRegionInfo, tableInfo->table_name);
 		//if region info is connecting, which means it is full, will just assign new tablet to serving
@@ -205,7 +235,7 @@ private boolean handle_infected_tablet(TabletInfo* infectedTabletInfo, ReplicaQu
 			//if the infectedTabletInfo is serving now, will add one more
 			if(infectedTabletInfo->end_timestamp == 0){
 				infectedTabletInfo->end_timestamp = time(0);
-				RegionInfo* secondRegionInfo = get_region_and_update(regionInfoList, 1);
+				RegionInfo* secondRegionInfo = list_get(regionInfoList, 1);
 				if(region_has_problem(secondRegionInfo)) return false;
 				TabletInfo* secondTabletInfo = create_new_tablet(firstRegionInfo, tableInfo->table_name);
 				list_append(replicaQueue->tabletInfoList, secondTabletInfo);
@@ -227,7 +257,6 @@ private boolean handle_infected_tablet(TabletInfo* infectedTabletInfo, ReplicaQu
 			//remove the infectedTabletInfo from the replicaQueue
 			list_remove(replicaQueue->tabletInfoList, infectedTabletInfo, just_free);
 		}
-
 		return true;
 }
 
@@ -270,6 +299,7 @@ public boolean check_problem_region_master(char* problem_region_conn){
 		return result;
 }
 
+/** This method will onl **/
 private void update_master_info(Master* master){
 		List* problem_regions = list_create();
 		//Update Region Info
@@ -281,37 +311,99 @@ private void update_master_info(Master* master){
 		}
 		//sort region info list
 		sort_region_info_list(master->regionInfoList);
-		if(list_size(problem_regions)>0) handle_problem_regions(problem_regions, masterInst);
+		//handle founded problem regions
+		if(list_size(problem_regions)>0){
+			handle_problem_regions(problem_regions, masterInst);
+		}
+		//flushing the table information
 		flush_table_info_list(master->conf_path, master->tableInfoList);
 }
 
-private Master* init_master_struct(){
-		Master* master = malloc2(sizeof(Master));
-		master->conf_path = m_cpy(DEFAULT_MASTER_CONF_PATH);
-		master->port = DEFAULT_MASTER_PORT;
-		master->duplicate_num = DEFAULT_DUPLICATE_NUM;
-		master->regionInfoList = list_create();
-		master->tableInfoList = list_create();
-		return master;
+/** The metadata of master server, include all table and region info **/
+public char* get_metadata_master(){
+		Buf* buf = init_buf();
+		char* line1 = mallocs(LINE_BUF_SIZE);
+		sprintf(line1, "The Master Default Duplication Number: %d\n", masterInst->duplicate_num);
+		buf_cat(buf, line1, strlen(line1));
+		int i=0, region_size = list_size(masterInst->regionInfoList);
+		char* line2 = mallocs(LINE_BUF_SIZE);
+		sprintf(line2, "The number of region node: %d.\n", region_size);
+		buf_cat(buf, line2, strlen(line2));
+
+		//Iterating all region node info
+		for(i=0; i<region_size; i++){
+			RegionInfo* regionInfo = list_get(masterInst->regionInfoList, i);
+			char* region_line1 = mallocs(LINE_BUF_SIZE);
+			sprintf(region_line1, "The information about Region No'%d.\n", i);
+			buf_cat(buf, region_line1, strlen(region_line1));
+			char* region_line2 = mallocs(LINE_BUF_SIZE);
+			sprintf(region_line2, "	The Connection Info: %s.\n", regionInfo->conn);
+			buf_cat(buf, region_line2, strlen(region_line2));
+			char* region_line3 = mallocs(LINE_BUF_SIZE);
+			sprintf(region_line3, "	The Available Size(MB): %d.\n", regionInfo->avail_space);
+			buf_cat(buf, region_line3, strlen(region_line3));
+			char* region_line4 = mallocs(LINE_BUF_SIZE);
+			sprintf(region_line4, "	Is Connecting Now: %s.\n", bool_to_str(regionInfo->connecting));
+			buf_cat(buf, region_line4, strlen(region_line4));
+			char* region_line5 = mallocs(LINE_BUF_SIZE);
+			sprintf(region_line5, "	Is Serving Now: %s.\n", bool_to_str(regionInfo->serving));
+			buf_cat(buf, region_line5, strlen(region_line5));
+			frees(5, region_line1, region_line2, region_line3, region_line4, region_line5);
+		}
+
+		int j=0, table_size = list_size(masterInst->tableInfoList);
+		char* line3 = mallocs(LINE_BUF_SIZE);
+		sprintf(line3, "The number of Tables: %d\n", table_size);
+		buf_cat(buf, line3, strlen(line3));
+		char* table_line = "Tables are:";
+		buf_cat(buf, table_line, strlen(table_line));
+		//Iterating all table info
+		for(j=0; j<table_size; j++){
+			TableInfo* tableInfo = list_get(masterInst->tableInfoList, j);
+			char* table_name_line = mallocs(LINE_BUF_SIZE);
+			sprintf(table_name_line, " %s.", tableInfo->table_name);
+			buf_cat(buf, table_name_line, strlen(table_name_line));
+			free2(table_name_line);
+		}
+		buf_cat(buf, LINE_SEPARATOR_STRING, strlen(LINE_SEPARATOR_STRING));
+
+		frees(3, line1, line2, line3);
+		char* metadata = m_get_buf_string(buf);
+		destory_buf(buf);
+		return metadata;
 }
 
+/** Make sure the conf path is valid **/
 public void load_master(char *conf_path){
-		masterInst = init_master_struct();
-		if(conf_path != NULL){
-			masterInst->conf_path = m_cpy(conf_path);
-			int port = get_int_value_by_key(conf_path, CONF_PORT_KEY);
-			if(port != 0) masterInst->port = port;
-			int	duplicate_num = get_int_value_by_key(conf_path, CONF_DUPLCATE_NUM_KEY);
-			if(duplicate_num != 0) masterInst->duplicate_num = duplicate_num;
-			masterInst->tableInfoList = load_table_info_list(conf_path);
-			masterInst->regionInfoList = load_region_info_list(conf_path);
+		logg(INFO, "Loading the master info from conf path is %s.", conf_path);
+		masterInst = malloc2(sizeof(Master));
+		masterInst->conf_path = m_cpy(conf_path);
+		int port = get_int_value_by_key(conf_path, CONF_PORT_KEY);
+		if(port != INDEFINITE){
+			masterInst->port = port;
+		}else{
+			masterInst->port = DEFAULT_MASTER_PORT;
 		}
+		int	duplicate_num = get_int_value_by_key(conf_path, CONF_DUPLCATE_NUM_KEY);
+		if(duplicate_num != INDEFINITE){
+			masterInst->duplicate_num = duplicate_num;
+		}else{
+			masterInst->duplicate_num = DEFAULT_DUPLICATE_NUM;
+		}
+		int flush_check_interval = get_int_value_by_key(conf_path, CONF_FLUSH_CHECK_INTERVAL_KEY);
+		if(flush_check_interval != INDEFINITE){
+			masterInst->flush_check_interval = flush_check_interval;
+		}else{
+			masterInst->flush_check_interval = DEFAULT_MASTER_FLUSH_CHECK_INTERVAL;
+		}
+		masterInst->tableInfoList = load_table_info_list(conf_path);
+		masterInst->regionInfoList = load_region_info_list(conf_path);
 		update_master_info(masterInst);
 }
 
 void* master_daemon_thread(void* nul){
 		while(1){
-			sleep(DEFAULT_MASTER_DAEMON_SLEEP_INTERVAL);
+			sleep(masterInst->flush_check_interval);
 			logg(INFO, "The interval is up, checking region status now.");
 			update_master_info(masterInst);
 			logg(INFO, "Finish the checking.");
@@ -325,25 +417,44 @@ public RPCResponse* handler_master_request(char *cmd, List* params){
 		RPCResponse *rpcResponse = NULL;
 		if(match(GET_TABLE_INFO_MASTER_CMD, cmd)){
 			char* table_name = get_param(params, 0);
-			TableInfo* tableInfo = get_table_info(masterInst->tableInfoList, table_name);
-			if(tableInfo!=NULL){
-				char* result = table_info_to_string(tableInfo);
-				rpcResponse = create_rpc_response(SUCCESS, strlen(result), result);
+			if(table_name == NULL){
+				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
 			}else{
-				rpcResponse = create_rpc_response(SUCCESS, 0, NULL);
+				TableInfo* tableInfo = get_table_info(masterInst->tableInfoList, table_name);
+				if(tableInfo!=NULL){
+					char* result = table_info_to_string(tableInfo);
+					rpcResponse = create_rpc_response(SUCCESS, strlen(result), result);
+				}else{
+					rpcResponse = create_rpc_response(SUCCESS, 0, NULL);
+				}
 			}
 		}else if(match(ADD_NEW_REGION_MASTER_CMD, cmd)){
 			char* region_conn = get_param(params, 0);
-			boolean bool = add_new_region_master(region_conn);
-			rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
+			if(region_conn == NULL){
+				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
+			}else{
+				boolean bool = add_new_region_master(region_conn);
+				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
+			}
 		}else if(match(CREATE_NEW_TABLE_MASTER_CMD, cmd)){
 			char* table_name = get_param(params, 0);
-			boolean bool = create_new_table_master(table_name);
-			rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
+			if(table_name == NULL){
+				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
+			}else{
+				boolean bool = create_new_table_master(table_name);
+				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
+			}
 		}else if(match(CHECK_PROBLEM_REGION_MASTER_CMD, cmd)){
 			char* problem_region_conn = get_param(params, 0);
-			boolean bool = check_problem_region_master(problem_region_conn);
-			rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
+			if(problem_region_conn == NULL){
+				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
+			}else{
+				boolean bool = check_problem_region_master(problem_region_conn);
+				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
+			}
+		}else if(match(GET_METADATA_MASTER_CMD, cmd)){
+			char* metadata = get_metadata_master();
+			rpcResponse = create_rpc_response(SUCCESS, strlen(metadata), m_cpy(metadata));
 		}else if(match(GET_ROLE_CMD, cmd)){
 			rpcResponse = create_rpc_response(SUCCESS, strlen(MASTER_KEY), m_cpy(MASTER_KEY));
 		}
@@ -355,7 +466,10 @@ public void start_server_master(){
 		pthread_t fresh_thread_id;
 		pthread_create(&fresh_thread_id, NULL, master_daemon_thread, (void*)NULL);
 		logg(INFO, "The daemon for master side flushing has started.");
-		logg(INFO, "The master server is starting and will handle request.");
+		logg(INFO, "The Master server is starting at %d and will handle request.", masterInst->port);
+		logg(INFO, "The Master Conf File is at %s.", masterInst->conf_path);
+		logg(INFO, "The Master Duplication Number is %d.", masterInst->flush_check_interval);
+		logg(INFO, "The Master Flushing Checking Interval is %d.", masterInst->flush_check_interval);
 		//Step 2. Startup Master Server
 		startup(masterInst->port, handler_master_request);
 }

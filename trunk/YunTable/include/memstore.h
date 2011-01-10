@@ -7,7 +7,7 @@
 
 typedef struct _Memstore Memstore;
 
-public Memstore* init_memstore(void);
+public Memstore* init_memstore(int id);
 
 public boolean memstore_full(Memstore* memstore);
 

@@ -22,5 +22,8 @@ public boolean add_new_region_master(char* region_conn);
 
 public boolean create_new_table_master(char* table_name);
 
+#define GET_METADATA_MASTER_CMD "get_metadata_master"
+
+public char* get_metadata_master();
 
 #endif /* MASTER_H_ */
