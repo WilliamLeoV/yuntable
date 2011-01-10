@@ -11,7 +11,7 @@ typedef struct _WalItem WalItem;
 
 public short get_tablet_id_wal_item(WalItem* walItem);
 
-public long get_item_id_wal_item(WalItem* walItem);
+public long long get_item_id_wal_item(WalItem* walItem);
 
 public Item* get_item_wal_item(WalItem* walItem);
 

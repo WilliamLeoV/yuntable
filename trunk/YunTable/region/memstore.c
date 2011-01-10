@@ -3,6 +3,7 @@
 #include "item.h"
 #include "memstore.h"
 #include "malloc2.h"
+#include "log.h"
 
 #define ONE_ALLOCATED_SIZE 10000
 #define DEFAULT_SORT_WATERMARK 10000
@@ -12,8 +13,9 @@
 #define END_ALLOCATED_SIZE 640000
 
 struct _Memstore{
+		int tablet_id; /** Used for logging information purpose **/
         Item** items; /**used array for better searching and sorting, since the store will be very big**/
-        size_t used_size;
+        size_t used_size; /** the number of slots has been used **/
         size_t sorted_size;  /** the cursor for defining the sorted mark **/
         size_t allocated_size; /** the size of items has been allocated in memory, the default is 500000 **/
         size_t max_allocated_size; /** the threshold for flushing, and will be assigned by the tablet **/
@@ -29,8 +31,9 @@ private int generate_random_allocated_size(){
         return max_allocated_size;
 }
 
-public Memstore* init_memstore(){
+public Memstore* init_memstore(int id){
         Memstore *memstore = malloc2(sizeof(Memstore));
+        memstore->tablet_id = id;
         memstore->items = malloc2(sizeof(Item *) * ONE_ALLOCATED_SIZE);
         memstore->allocated_size = ONE_ALLOCATED_SIZE;
         memstore->used_size = 0;
@@ -42,31 +45,27 @@ public Memstore* init_memstore(){
 public boolean memstore_full(Memstore* memstore){
         //if(memstore->used_size > 0) return true; a trigge that init flush every time
         //if the used size about 98% allocated size, that means the memstore is full
-        if(memstore->used_size > memstore->max_allocated_size * FLUSH_THERSHOLD_PERCENT) return true;
-        else return false;
+        if(memstore->used_size > memstore->max_allocated_size * FLUSH_THERSHOLD_PERCENT){
+        	logg(INFO, "The memstore for tablet %d is almost full.", memstore->tablet_id);
+        	return true;
+        }else{
+        	return false;
+        }
 }
 
-/* return NULL on failure */
 private Memstore* enlarge_memstore(Memstore *memstore){
+		logg(INFO, "Enlarge memstore for tablet %d.", memstore->tablet_id);
         Item** items;
         int target_size = memstore->allocated_size + ONE_ALLOCATED_SIZE;
         items = realloc2(memstore->items, target_size * sizeof(Item *));
-        if (items) {
-            memstore->items = items;
-            memstore->allocated_size = target_size;
-            return memstore;
-        } else {
-            return NULL;
-        }
+		memstore->items = items;
+		memstore->allocated_size = target_size;
+		return memstore;
 }
 
 public void append_memstore(Memstore *memstore, Item *item){
         if(memstore->used_size == memstore->allocated_size) {
-            if (enlarge_memstore(memstore) == NULL) {
-                printf("Warning: Failed to enlarge memstore\r\n");
-                //TODO link this situation to a exception handler
-                return;
-            }
+        	memstore = enlarge_memstore(memstore);
         }
         memstore->items[memstore->used_size] = item;
         memstore->used_size++;
@@ -82,23 +81,21 @@ public ResultSet* get_all_sorted_items_memstore(Memstore *memstore){
         return m_create_result_set(memstore->sorted_size, memstore->items);
 }
 
-/** if the machine powers off during reset, may have chance of losing data, TODO fix it**/
+/** if the machine powers off during reset, may have chance of losing data, TODO fix it in the later release **/
 public Memstore* reset_memstore(Memstore *memstore, int flushed_size){
-        //check if have new added items has been flushed
+		logg(INFO, "The memstore resetting process for tablet %d has begin.", memstore->tablet_id);
+        int tablet_id = memstore->tablet_id;
+		//check if have new added items has been flushed
         List* new_added_item_list = list_create();
-        if (!new_added_item_list) {
-            return NULL;
-            //TODO link this situation to a exception handler
-        }
         int i = 0;
         if(memstore->used_size > flushed_size){
-                for(i=flushed_size-1; i<memstore->used_size; i++)
-                        list_append(new_added_item_list, m_clone_item(memstore->items[i]));
+			for(i=flushed_size-1; i<memstore->used_size; i++)
+				list_append(new_added_item_list, m_clone_item(memstore->items[i]));
         }
         //recreate memstore
         free_item_array(memstore->used_size, memstore->items);
         frees(2, memstore,memstore->items);
-        memstore = init_memstore();
+        memstore = init_memstore(tablet_id);
         //append the new added_item_list to the memstore
         Item* item = NULL;
         while((item = list_next(new_added_item_list)) != NULL){
@@ -110,15 +107,11 @@ public Memstore* reset_memstore(Memstore *memstore, int flushed_size){
 }
 
 private ResultSet* query_unsorted_part(Memstore* memstore, char* row_key){
-        //TODO free the item list
         List *itemList = list_create();
-        if (!itemList) {
-            return NULL;
-        }
         int i=0;
         for(i=memstore->sorted_size; i<memstore->used_size; i++){
-                if(cmp_item_with_row_key(memstore->items[i], row_key)==0)
-                                list_append(itemList, memstore->items[i]);
+			if(cmp_item_with_row_key(memstore->items[i], row_key)==0)
+				list_append(itemList, memstore->items[i]);
         }
         ResultSet* set = m_item_list_to_result_set(itemList);
         list_destory(itemList, only_free_struct);
@@ -151,7 +144,6 @@ public ResultSet* query_memstore_by_timestamp(Memstore* memstore, int begin_time
         return m_item_list_to_result_set(itemList);
 }
 
-//TODO may add deduplication function
 public void sort_memstore(Memstore* memstore){
         int sorted_size = memstore->used_size;
         qsort(memstore->items, sorted_size, sizeof(Item *), cmp_item);
@@ -159,7 +151,7 @@ public void sort_memstore(Memstore* memstore){
 }
 
 public char* get_memstore_metadata(Memstore* memstore){
-		char* metadata = mallocs(1000);
+		char* metadata = mallocs(LINE_BUF_SIZE);
 		sprintf(metadata, "The Number of Item inside memstore: %d.\n", memstore->used_size);
 		return metadata;
 }

@@ -67,8 +67,6 @@ struct _YFile{
 
 #define DEFAULT_SIZE_OF_DATA_BLOCK 64 * 1024
 
-#define DEFAULT_HOTNESS_VALUE 60 * 60 //One Hour
-
 #define DATA_BLOCK_MAGIC "datablk"
 #define TRAILER_MAGIC "yftrilr"
 #define INDEX_BLOCK_MAGIC "indxblk"
@@ -392,29 +390,30 @@ public ResultSet* query_yfile_by_timestamp(YFile* yfile, int begin_timestamp, in
 		return resultSet;
 }
 
-public void refresh_yfile_data_block_cache(YFile* yfile){
-	int i=0, size = yfile->indexBlock->index_count;
-	long long current_timestamp = get_current_time_stamp();
-	for(i=0; i<size; i++){
-		DataBlock* dataBlock = yfile->dataBlockCache[i];
-		if(dataBlock != NULL){
-			if(dataBlock->last_visited_timestamp + DEFAULT_HOTNESS_VALUE < current_timestamp){
-				free_data_block(dataBlock);
+public void refresh_yfile_data_block_cache(YFile* yfile, int hotness_value){
+		logg(INFO, "Refreshing data block cache for yfile %s.", yfile->file_path);
+		int i=0, size = yfile->indexBlock->index_count;
+		long long current_timestamp = get_current_time_stamp();
+		for(i=0; i<size; i++){
+			DataBlock* dataBlock = yfile->dataBlockCache[i];
+			if(dataBlock != NULL){
+				if(dataBlock->last_visited_timestamp + hotness_value < current_timestamp){
+					free_data_block(dataBlock);
+				}
 			}
 		}
-	}
 }
 
 public char* get_yfile_metadata(YFile* yfile){
-		char* line1 = mallocs(1000);
+		char* line1 = mallocs(LINE_BUF_SIZE);
 		sprintf(line1, "Total Number of Item: %d.\n",yfile->trailer->total_item_num);
-		char* line2 = mallocs(1000);
+		char* line2 = mallocs(LINE_BUF_SIZE);
 		sprintf(line2, "The First Row Key: %s.\n", get_row_key(yfile->trailer->firstKey));
-		char* line3 = mallocs(1000);
+		char* line3 = mallocs(LINE_BUF_SIZE);
 		sprintf(line3, "The Last Row Key: %s.\n", get_row_key(yfile->trailer->lastKey));
-		char* line4 = mallocs(1000);
+		char* line4 = mallocs(LINE_BUF_SIZE);
 		sprintf(line4, "The Begin Timestamp: %lld.\n", yfile->trailer->begin_timestamp);
-		char* line5 = mallocs(1000);
+		char* line5 = mallocs(LINE_BUF_SIZE);
 		sprintf(line5, "The Begin Timestamp: %lld.\n", yfile->trailer->begin_timestamp);
 		char* metadata = m_cats(5, line1, line2, line3, line4, line5);
 		frees(5, line1, line2, line3, line4, line5);

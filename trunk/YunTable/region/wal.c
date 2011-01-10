@@ -20,7 +20,7 @@ struct _Wal{
 
 struct _WalItem{
 	short tablet_id;
-	long item_id;
+	long long item_id;
 	Item* item;
 };
 
@@ -29,15 +29,15 @@ struct _WalItem{
 #define TMP_WAL_FILE_PATH "temp_wal.log"
 
 public short get_tablet_id_wal_item(WalItem* walItem){
-		return walItem->tablet_id;
+		 return walItem->tablet_id;
 }
 
-public long get_item_id_wal_item(WalItem* walItem){
-		return walItem->item_id;
+public long long get_item_id_wal_item(WalItem* walItem){
+		 return walItem->item_id;
 }
 
 public Item* get_item_wal_item(WalItem* walItem){
-		return walItem->item;
+		 return walItem->item;
 }
 
 public void free_wal_item_void(void* walItem){
@@ -74,6 +74,7 @@ private WalItem* load_wal_item(FILE* fp){
 }
 
 public Wal* load_wal(char* file_path){
+		logg(INFO, "Loading the wal file %s.", file_path);
 		Wal *wal = malloc2(sizeof(Wal));
 		cpy(wal->magic, WAL_MAGIC_HEADER);
 		wal->wal_file_path = m_cpy(file_path);
@@ -91,6 +92,7 @@ public boolean need_to_reload_wal(Wal *wal){
 }
 
 public void refresh_wal(Wal *wal, List* walItems){
+		logg(INFO, "Refreshing the wal file %s.", wal->wal_file_path);
 		char* tmp_file_path = TMP_WAL_FILE_PATH;
 		logg(INFO, "creating a tmp wal file %s.", tmp_file_path);
 		create_or_rewrite_file(tmp_file_path, WAL_MAGIC_HEADER);
@@ -100,23 +102,30 @@ public void refresh_wal(Wal *wal, List* walItems){
 			while((walItem = list_next(walItems)) != NULL){
 				flush_wal_item(walItem, fp);
 			}
+			list_rewind(walItems);
 		}
 		fclose(fp);
 		logg(INFO, "replace the wal file with tmp wal file.", tmp_file_path);
-		//TODO handle the failure situation
-		unlink(wal->wal_file_path);
-		rename(tmp_file_path, wal->wal_file_path);
+
+		if(file_exist(wal->wal_file_path) == true && unlink(wal->wal_file_path) != 0){
+			logg(EMERG, "Fail to remove the original wal file %s", wal->wal_file_path);
+			abort();
+		}
+		if(rename(tmp_file_path, wal->wal_file_path) !=0){
+			logg(EMERG, "Fail to rename the tmp wal file %s to the original wal file", tmp_file_path, wal->wal_file_path);
+			abort();
+		}
 }
 
 public List* load_log_wal(Wal *wal){
+		logg(INFO, "Loading log from the wal file %s.", wal->wal_file_path);
 		int file_size = get_file_size(wal->wal_file_path);
 		List *logList = list_create();
 		FILE *fp = fopen(wal->wal_file_path, "r");
 		fseek(fp, sizeof(wal->magic), SEEK_SET);
 		while(ftell(fp) != file_size){
 			WalItem *walItem = load_wal_item(fp);
-			//TODO may have some performance issues
-			list_append(logList, walItem);
+			list_add(logList, walItem);
 		}
 		list_rewind(logList);
 		return logList;

@@ -14,7 +14,6 @@
 #define ERR_MSG_NO_ROW_KEY "Should have a row key."
 #define ERR_MSG_PUT "The Put Data action has failed."
 #define ERR_MSG_TABLE_NOT_CREATED "pLease create the table first."
-#define ERR_MSG_NO_CONF_FILE "Please input a conf file, such as ./startCli -conf conf/cli.conf."
 #define ERR_MSG_NO_MASTER "Please set up a master at first"
 #define ERR_MSG_CLUSTER_FULL "Can not get a new region for this table because the whole cluster is full."
 #define ERR_MSG_WRONG_MASTER "Either the inputted master is wrong or has some connection problem."
