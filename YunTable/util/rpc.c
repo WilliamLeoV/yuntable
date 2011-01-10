@@ -25,6 +25,19 @@ struct _RPCResponse{
 /** The Buffer Pool for holding RPCResponse Data  **/
 #define CONN_BUF_SIZE 1000 * 1000
 
+/** If the status code is not qualified, the method will return **/
+public char* get_error_message(int status_code){
+	if(status_code ==  CONN_FAIL){
+		return CONN_FAIL_MSG;
+	}else if(status_code == ERROR_NO_CMD){
+		return ERROR_NO_CMD_MSG;
+	}else if(status_code == ERROR_NO_PARAM){
+		return ERROR_NO_PARAM_MSG;
+	}else{
+		return UNDEFINED_STATUS_CODE_MSG;
+	}
+}
+
 public int get_status_code(RPCResponse* rpcResponse){
 		return rpcResponse->status_code;
 }
@@ -39,13 +52,6 @@ public byte* get_result(RPCResponse* rpcResponse){
 
 public byte* get_param(List* params, int index){
         return list_get(params, index);
-}
-
-public int get_param_int(List* params, int index){
-        byte* result_bytes = get_param(params, index);
-        int result = atoi(result_bytes);
-        free2(result_bytes);
-        return result;
 }
 
 public List* generate_charactor_params(int size, ...){
@@ -87,7 +93,7 @@ public Buf* params_to_byte(List* params){
         buf_cat(buf, &size, sizeof(size));
         for(i=0; i<size; i++){
 			//flush the size of item
-			int item_size = atoi(list_next(params));
+			int item_size = btoi(list_next(params));
 			buf_cat(buf, &item_size, sizeof(item_size));
 			//flush the content of item
 			buf_cat(buf, list_next(params), item_size);
@@ -188,11 +194,14 @@ public boolean check_node_validity(char* conn, char* type){
         boolean result = false;
         RPCRequest* rpcRequest = create_rpc_request(GET_ROLE_CMD, NULL);
 		RPCResponse* rpcResponse = connect_conn(conn, rpcRequest);
-		if(get_status_code(rpcResponse) == SUCCESS || get_result_length(rpcResponse) > 0){
+		int status_code = get_status_code(rpcResponse);
+		if(status_code == SUCCESS){
 			char* role_info = rpcResponse->result;
 			if (match(role_info, type)) {
 				result = true;
 			}
+		}else{
+			printf("Have some problem when check node %s validity:%s!\n", conn,  get_error_message(status_code));
 		}
 		destory_rpc_request(rpcRequest);
 		destory_rpc_response(rpcResponse);
@@ -276,8 +285,14 @@ private void start_daemon(int listenfd, RPCResponse* (*handler_request)(char *cm
 			connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &cliaddr_len);
 			n = read(connfd, buf, CONN_BUF_SIZE);
 			RPCRequest* rpcRequest = byte_to_rpc_request(buf);
-			logg(DEBUG, "The request is cmd:%s.", rpcRequest->cmd_name);
-			RPCResponse* rpcResponse = handler_request(rpcRequest->cmd_name, rpcRequest->params);
+			RPCResponse* rpcResponse = NULL;
+			if(rpcRequest->cmd_name != NULL){
+				logg(DEBUG, "The request is cmd:%s.", rpcRequest->cmd_name);
+				rpcResponse = handler_request(rpcRequest->cmd_name, rpcRequest->params);
+			}else{
+				logg(ISSUE, "The request has not included necessary cmd.");
+				rpcResponse = create_rpc_response(ERROR_NO_CMD, 0, NULL);
+			}
 			Buf* rpcResponseBuf = rpc_response_to_byte(rpcResponse);
 			write(connfd, get_buf_data(rpcResponseBuf), get_buf_index(rpcResponseBuf));
 			close(connfd);
@@ -301,7 +316,7 @@ public void startup(int servPort, RPCResponse* (*handler_request)(char *cmd, Lis
         setTcpNoDelay(listenfd);
 
         if(bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) != 0){
-			logg(ISSUE, "Failed to listen the port %d, and quit!", servPort);
+			logg(ISSUE, "Failed to listen the port %d, Please change the port setting!", servPort);
 			exit(-1);
         }
 
