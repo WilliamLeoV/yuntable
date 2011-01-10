@@ -5,10 +5,10 @@
 #include "item.h"
 
 /** Status Code Part, which show the status of RPC Call **/
-#define CONN_FAIL 0 //Has failed to connect to remote target node
 #define SUCCESS 1 //The cmd has been processed successfully
-#define ERROR_NO_CMD 2 //The RPC Request has not included any cmd
-#define ERROR_NO_PARAM 2 //The RPC Request has not included needed parameter
+#define CONN_FAIL 2 //Has failed to connect to remote target node
+#define ERROR_NO_CMD 3 //The RPC Request has not included any cmd
+#define ERROR_NO_PARAM 4 //The RPC Request has not included needed parameter
 //#define IN_PROGRESS //Which means the cmd is still processing, may has use in the future
 
 #define CONN_FAIL_MSG "connection Failed"
