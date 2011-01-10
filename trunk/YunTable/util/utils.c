@@ -8,9 +8,10 @@
 
 /** the safe implmenetaion of strcat **/
 public char* move_pointer(char* pointer, int div){
+		char* temp = pointer;
         int i=0;
-        for(i=0; i<div; i++) pointer++;
-        return pointer;
+        for(i=0; i<div; i++) temp++;
+        return temp;
 }
 
 public char* cat(char* dest, char* src){
@@ -96,15 +97,24 @@ public boolean match_for_list_find(void* dest, void *src){
         return cmp(tmp_dest, tmp_src, max_len);
 }
 
-/** if the tail of dest is as same as src**/
+/** if the tail of dest is as same as src **/
 public boolean match_tail(char* dest, char *src){
-        //TODO if the dest has two set of chars like src, which will cause some problems
         char* tmp_dest = dest;
-        tmp_dest = strstr(tmp_dest, src);
-        if(tmp_dest == NULL) return false;
+        char* ptr = NULL;
+        //find the rightmost match string
+        while(1){
+        	tmp_dest = strstr(tmp_dest, src);
+        	if(tmp_dest != NULL){
+            	ptr = tmp_dest;
+            	tmp_dest++;
+        	}else{
+        		break;
+        	}
+        }
+        if(ptr == NULL) return false;
         //check if the tmp_dest is at the tail
-        tmp_dest = move_pointer(tmp_dest, strlen(src));
-        if( *tmp_dest == '\0') return true;
+        ptr = move_pointer(ptr, strlen(src));
+        if( *ptr == '\0') return true;
         else return false;
 }
 
@@ -119,6 +129,7 @@ public int count(char *string, char target){
 }
 
 /** conversion methods **/
+/** byte and char are very different, need to make sure to use the right to handle it **/
 
 /** integer to string **/
 public char* m_itos(int num){
@@ -127,7 +138,7 @@ public char* m_itos(int num){
         return str;
 }
 
-/** long to string **/
+/** long long to string **/
 public char* m_lltos(long long num){
         char *str = mallocs(50);
         sprintf(str, "%lld", num);
@@ -148,7 +159,7 @@ public boolean stob(char* bool_str){
         }else return false;
 }
 
-/** byte to integer **/
+/** byte to integer, is necessary when loading integer from bytes **/
 public int btoi(byte *b){
         return *((int *)b);
 }
@@ -507,7 +518,7 @@ void testcase_for_get_files_by_ext(void){
 }
 
 void testcase_for_match_tail(void){
-        char *dest = "people.table";
+        char *dest = "peopley.yfile.table";
         char *src1 = ".table";
         char *src2 = ".yfile";
         printf("%s\n", bool_to_str(match_tail(dest, src1)));

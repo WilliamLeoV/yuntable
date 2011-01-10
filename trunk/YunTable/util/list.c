@@ -45,14 +45,21 @@ private ListNode* create_list_node(void* data){
 	return next;
 }
 
-
-public boolean list_append(List* thiz, void* data){
+/** Not Performance Wise Choice, but no need to rewind the list after finishing using it **/
+public void list_append(List* thiz, void* data){
 	list_rewind(thiz);
+	list_add(thiz, data);
+	list_rewind(thiz);
+}
+
+/** Performance Wise Choice, pls rewind the list after finishing using it **/
+public void list_add(List* thiz, void* data){
 	ListNode *next = create_list_node(data);
 	//if the list is empty
 	if(thiz->cursor == NULL){
 		next->prev = NULL;
 		thiz->first = next;
+		list_rewind(thiz);
 	}else{
 		while(thiz->cursor->next!=NULL){
 			thiz->cursor = thiz->cursor->next;
@@ -60,8 +67,6 @@ public boolean list_append(List* thiz, void* data){
 		next->prev = thiz->cursor;
 		thiz->cursor->next = next;
 	}
-	list_rewind(thiz);
-	return true;
 }
 
 /** the method for better coding, and thread safe, but not performance wise for large list iterating **/
@@ -69,16 +74,20 @@ public void* list_get(List* thiz, int index){
 	void* result = NULL;
 	list_rewind(thiz);
 	int i=0;
-	void* data = NULL;
-	while((data = list_next(thiz)) != NULL){
-		if(i==index) return data;
-		else i++;
+	void* temp = NULL;
+	while((temp = list_next(thiz)) != NULL){
+		if(i == index){
+			result = temp;
+			break;
+		}else{
+			i++;
+		}
 	}
 	list_rewind(thiz);
 	return result;
 }
 
-/** this method won't rewind the list, pls rewind the list after iterating it**/
+/** this method won't rewind the list, pls rewind the list after iterating it, and it is performance wise**/
 public void* list_next(List* thiz){
 	//if the list is empty or reach the end
 	ListNode *node = list_next_node(thiz);
@@ -238,9 +247,8 @@ void testcase_for_char_list(void){
 	List *list = list_create();
 	int i=0;
 	for(i=0; i<4; i++){
-		list_append(list, text[i]);
+		list_add(list, text[i]);
 	}
-	//char_list_print(list);
 
 	list_rewind(list);
 	char* data;
@@ -269,6 +277,7 @@ void struct_list_print(List *thiz){
 	while((mess = list_next(thiz)) != NULL){
 		printf("%s\n",(char *)(mess->value));
 	}
+	list_rewind(thiz);
 }
 
 void free_mess(void *mess){
@@ -283,14 +292,15 @@ void testcase_for_struct_list(void){
 	int i = 0;
 	for(i=0; i<4; i++){
 		Mess *mess = malloc2(sizeof(Mess));
-		mess->value = calloc(1, sizeof(char)*strlen(text[i]));
+		mess->value = malloc2(strlen(text[i]));
 		strncpy(mess->value, text[i], strlen(text[i]));
 		list_append(list, mess);
 	}
+	list_rewind(list);
+	printf("list size:%d\n", list_size(list));
 	printf("the list after creation\n");
 	struct_list_print(list);
 
-	list_rewind(list);
 	Mess *mess;
 	while((mess = list_next(list))!=NULL){
 		if((strcmp(mess->value, "hell1")==0)||(strcmp(mess->value, "hello")==0)){
@@ -345,7 +355,7 @@ void testcase_for_append_next(){
 }
 
 int main(void){
-	testcase_for_list_int();
+	testcase_for_struct_list();
 	return 1;
 }
 #endif /* LIST_TEST */

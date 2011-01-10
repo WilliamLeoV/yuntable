@@ -10,7 +10,9 @@ typedef struct _List List;
 /** public method declaration **/
 public List* list_create(void);
 
-public boolean list_append(List* thiz, void* data);
+public void list_append(List* thiz, void* data);
+
+public void list_add(List* thiz, void* data);
 
 public void* list_get(List* thiz, int index);
 

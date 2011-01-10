@@ -3,11 +3,25 @@
 
 #include "global.h"
 
+/**This used at linux shell **/
 #define CONF_OPTION_KEY "-conf"
+
+/** Below are the KEY used at conf file **/
+
+/** Defined the open port for server, both for Master side and Region side **/
 #define CONF_PORT_KEY "port"
+/** Defined how many replica queue for one table, only used at Master side **/
 #define CONF_DUPLCATE_NUM_KEY "duplicate_num"
+/** Defined how many regions belong to the master, only used at Master side **/
 #define CONF_REGION_LIST_KEY "regionList"
+/** Defined how many regions belong to the master, only used at Master side **/
 #define CONF_TABLE_INFO_LIST_KEY "tableInfoList"
+/** Defined the background daemon sleep interval, both for Master side and Region side **/
+#define CONF_FLUSH_CHECK_INTERVAL_KEY "flush_check_interval"
+/** Defined the region's last item id has been flushed to the yfile, only for Region side, and can not be edited by user **/
+#define CONF_LAST_FLUSHED_ID_KEY "last_flushed_id"
+/** Defined the hotness value for region side, which represents the memory duration of data block **/
+#define CONF_HOTNESS_VALUE_KEY "hotness_value"
 
 typedef struct _RegionInfo{
 	char* conn;
@@ -34,15 +48,15 @@ typedef struct _ReplicaQueue{
 
 typedef struct _TabletInfo{
 	RegionInfo *regionInfo; /* a pointer */
-	int begin_timestamp; /* The start of timestamp, if it is 0, means nothing has been set */
-	int end_timestamp; /* The end of timestamp, if it is 0, means nothing has been set */
+	long long begin_timestamp; /* The start of timestamp, if it is 0, means nothing has been set */
+	long long end_timestamp; /* The end of timestamp, if it is 0, means nothing has been set */
 }TabletInfo;
 
 typedef struct _SyncJob{
 	char* target_conn;
 	char* table_name;
-	int begin_timestamp;
-	int end_timestamp;
+	long long begin_timestamp;
+	long long end_timestamp;
 }SyncJob;
 
 public char* m_get_value_by_key(char *file_path, char* target_key);
@@ -51,13 +65,13 @@ public int get_int_value_by_key(char *file_path, char* target_key);
 
 public void flush_key_value(char* file_path, char* key, char* value);
 
-public SyncJob* create_sync_job(char* target_conn, char* table_name, int begin_timestamp, int end_timestamp);
+public SyncJob* create_sync_job(char* target_conn, char* table_name, long long begin_timestamp, long long end_timestamp);
 
 public RegionInfo* create_region_info(char* region_conn);
 
 public RegionInfo* get_region_info(List* regionInfoList, char* region_conn);
 
-public TabletInfo* create_tablet_info(RegionInfo *regionInfo, int begin_timestamp, int end_timestamp);
+public TabletInfo* create_tablet_info(RegionInfo *regionInfo, long long begin_timestamp, long long end_timestamp);
 
 public boolean match_tablet_info(void *tabletInfo_void, void *regionInfo);
 
