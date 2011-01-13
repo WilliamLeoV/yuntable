@@ -25,7 +25,7 @@ typedef struct _Master{
 /**global singleton **/
 Master *masterInst = NULL;
 
-/* currently only update the available size of region info */
+/* Currently only update the available size of region info */
 private void update_region_info(RegionInfo* regionInfo){
 		regionInfo->connecting = true;
 		RPCRequest* rpcRequest = create_rpc_request(AVAILABLE_SPACE_REGION_CMD, NULL);
@@ -37,8 +37,7 @@ private void update_region_info(RegionInfo* regionInfo){
 	    	logg(ISSUE, "The target region %s have some problem:%s.", regionInfo->conn,
 	    			get_error_message(status_code));
 	    	regionInfo->connecting = false;
-	    	//TODO need to use the async mode
-	    	check_problem_region_master(regionInfo->conn);
+	    	//TODO need to handle region fail situation?
 	    }
 	    destory_rpc_request(rpcRequest);
 	    destory_rpc_response(rpcResponse);
@@ -261,6 +260,8 @@ private boolean handle_infected_tablet(TabletInfo* infectedTabletInfo, ReplicaQu
 }
 
 private void handle_problem_regions(List* problemRegions, Master* master){
+		logg(ISSUE, "This routine has not been tested, and stops now.");
+		return;
 		RegionInfo* regionInfo = NULL;
 		while((regionInfo = list_next(problemRegions))){
 			//iterator table, column family and replica queue
@@ -285,7 +286,6 @@ private void handle_problem_regions(List* problemRegions, Master* master){
 public boolean check_problem_region_master(char* problem_region_conn){
 		boolean result = false;
 		logg(ISSUE, "The Region Node %s may have some problem.", problem_region_conn);
-		logg(ISSUE, "This routine has not been tested.");
 		RegionInfo* regionInfo = get_region_info(masterInst->regionInfoList, problem_region_conn);
 		update_region_info(regionInfo);
 		sort_region_info_list(masterInst->regionInfoList);
@@ -299,7 +299,7 @@ public boolean check_problem_region_master(char* problem_region_conn){
 		return result;
 }
 
-/** This method will onl **/
+/** This method will update all regions' info **/
 private void update_master_info(Master* master){
 		List* problem_regions = list_create();
 		//Update Region Info

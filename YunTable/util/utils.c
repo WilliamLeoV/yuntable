@@ -416,12 +416,12 @@ public long long get_current_time_stamp(){
 
 /** The Unit is MB **/
 public int get_local_partition_free_space(){
-	char* local_dir = ".";
-    struct statfs diskInfo;
-    statfs(local_dir, &diskInfo);
-    unsigned long long totalBlocks = diskInfo.f_bsize;
-    unsigned long long freeDisk = diskInfo.f_bavail*totalBlocks;
-    return freeDisk / MB;
+		char* local_dir = ".";
+		struct statfs diskInfo;
+		statfs(local_dir, &diskInfo);
+		unsigned long long totalBlocks = diskInfo.f_bsize;
+		unsigned long long freeDisk = diskInfo.f_bavail*totalBlocks;
+		return freeDisk / MB;
 }
 
 #ifdef UTILS_TEST
