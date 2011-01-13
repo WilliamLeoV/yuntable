@@ -27,7 +27,7 @@ private int generate_random_allocated_size(){
         int percent = generate_random_int();
         int diff = END_ALLOCATED_SIZE - BEGIN_ALLOCATED_SIZE;
         int max_allocated_size = BEGIN_ALLOCATED_SIZE + (percent * diff / 100);
-        printf("the random generated allocated size: %d\n", max_allocated_size);
+        logg(INFO, "The Memstore's random generated allocated size: %d", max_allocated_size);
         return max_allocated_size;
 }
 
