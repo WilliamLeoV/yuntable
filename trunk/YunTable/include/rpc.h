@@ -12,8 +12,8 @@
 //#define IN_PROGRESS //Which means the cmd is still processing, may has use in the future
 
 #define CONN_FAIL_MSG "connection Failed"
-#define ERROR_NO_CMD_MSG "no command includes in the request"
-#define ERROR_NO_PARAM_MSG "not enough parameters includes in the request"
+#define ERROR_NO_CMD_MSG "no command included in the request"
+#define ERROR_NO_PARAM_MSG "not enough parameters included in the request"
 
 #define UNDEFINED_STATUS_CODE_MSG "the Status Code has not been defined"
 

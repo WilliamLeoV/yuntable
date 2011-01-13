@@ -337,10 +337,10 @@ public void destory_table_info(void* tableInfo_void){
 		frees(2, tableInfo->table_name, tableInfo);
 }
 
-/* Sample String:
- * people.default_cf.0=127.0.0.1:8302,120000,12000;127.0.0.1:8303,120000,12000;
- * people.default_cf.1=127.0.0.1:8302,120000,12000;127.0.0.1:8303,120000,12000;
- */
+/** Sample String:
+ * people.0=127.0.0.1:8302,120000,12000;127.0.0.1:8303,120000,12000;
+ * people.1=127.0.0.1:8302,120000,12000;127.0.0.1:8303,120000,12000;
+ **/
 public TableInfo* string_to_table_info(char* table_name, List* lines){
 		TableInfo* tableInfo = create_table_info(table_name);
 		char* line = NULL;

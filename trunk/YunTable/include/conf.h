@@ -42,7 +42,7 @@ typedef struct _TableInfo{
 }TableInfo;
 
 typedef struct _ReplicaQueue{
-	int id;
+	int id; //The index of the ReplicaQueue inside a table
 	List* tabletInfoList;
 }ReplicaQueue;
 
