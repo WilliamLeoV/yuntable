@@ -9,11 +9,13 @@
 #define CONN_FAIL 1 //Has failed to connect to remote target node
 #define ERROR_NO_CMD 2 //The RPC Request has not included any cmd
 #define ERROR_NO_PARAM 3 //The RPC Request has not included needed parameter
+#define ERROR_TABLET_NOT_EXIST 4 //The Region Node don't have the target tablet
 //#define IN_PROGRESS //Which means the cmd is still processing, may has use in the future
 
 #define CONN_FAIL_MSG "connection Failed"
 #define ERROR_NO_CMD_MSG "no command included in the request"
 #define ERROR_NO_PARAM_MSG "not enough parameters included in the request"
+#define ERROR_TABLET_NOT_EXIST_MSG "the Region Node don't have the the tablet belong to this table"
 
 #define UNDEFINED_STATUS_CODE_MSG "the Status Code has not been defined"
 
