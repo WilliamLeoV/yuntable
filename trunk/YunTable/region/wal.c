@@ -15,12 +15,12 @@
 
 struct _Wal{
 	byte magic[8];
-	char *wal_file_path; /**used to locate the wal file **/
+	char *wal_file_path; /** used to locate the wal file **/
 };
 
 struct _WalItem{
-	short tablet_id;
-	long long item_id;
+	short tablet_id; /** indicate the wal item belong to which tablet **/
+	long long item_id; /** the item id that stored in this region **/
 	Item* item;
 };
 
@@ -67,7 +67,7 @@ public WalItem* create_wal_item(short tablet_id, long item_id, Item* item){
 private WalItem* load_wal_item(FILE* fp){
 		short tablet_id = 0;
 		fread(&tablet_id, sizeof(tablet_id), 1, fp);
-		long item_id = 0;
+		long long item_id = 0;
 		fread(&item_id, sizeof(item_id), 1, fp);
 		Item* item = m_load_item(fp);
 		return create_wal_item(tablet_id, item_id, item);
