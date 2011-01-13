@@ -40,7 +40,4 @@ utilTest:
 connTest:
 	$(CC) $(CFLAGS)	${UTIL_SRC} -D CONN_TEST -o connTest 
 
-clean:
-	rm -r tablet*/ wal.log
-
 	
