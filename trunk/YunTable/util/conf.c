@@ -416,7 +416,7 @@ public void flush_table_info_list(char* file_path, List* tableInfoList){
 			if(match(key, CONF_TABLE_INFO_LIST_KEY)) continue;
 			//check if the table related with table config
 			Tokens* keyTokens = init_tokens(key, MID_SEPARATOR);
-			if(keyTokens->size != 3 || get_table_info(tableInfoList, keyTokens->tokens[0]) == NULL) {
+			if(keyTokens->size != 2 || get_table_info(tableInfoList, keyTokens->tokens[0]) == NULL) {
 				buf_cat(buf, line, strlen(line));
 				buf_cat(buf, LINE_SEPARATOR_STRING, strlen(LINE_SEPARATOR_STRING));
 			}

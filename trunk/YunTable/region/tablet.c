@@ -169,7 +169,7 @@ public  ResultSet* query_tablet_by_timestamp(Tablet *tablet, int begin_timestamp
 
 public ResultSet* query_tablet_all(Tablet *tablet){
 		 //get all items from memstore
-		 ResultSet* memstoreSet = get_all_sorted_items_memstore(tablet->memstore);
+		 ResultSet* memstoreSet = get_all_items_memstore(tablet->memstore);
 		 //get all items from yfile
 		 ResultSet* yfileSet = query_yfiles_by_timestamp(tablet->yfileList, 0, time(0));
 
