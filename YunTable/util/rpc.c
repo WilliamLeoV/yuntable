@@ -260,7 +260,7 @@ public RPCResponse* connect_conn(char* conn, RPCRequest* rpcRequest){
         int ret = connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
 
         if (ret < 0) {
-        	logg(ISSUE, "Failed to connect to server %s.\r\n", conn);
+        	logg(ISSUE, "Failed to connect to server %s.", conn);
         	rpcResponse = create_rpc_response(CONN_FAIL, 0, NULL);
         }else{
 			//process rpc request

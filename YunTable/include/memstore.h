@@ -15,6 +15,8 @@ public void append_memstore(Memstore *memstore, Item *item);
 
 public ResultSet* get_all_sorted_items_memstore(Memstore *memstore);
 
+public ResultSet* get_all_items_memstore(Memstore *memstore);
+
 public void sort_memstore(Memstore* memstore);
 
 public ResultSet* query_memstore_by_row_key(Memstore* memstore, char* row_key);

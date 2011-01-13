@@ -81,6 +81,10 @@ public ResultSet* get_all_sorted_items_memstore(Memstore *memstore){
         return m_create_result_set(memstore->sorted_size, memstore->items);
 }
 
+public ResultSet* get_all_items_memstore(Memstore *memstore){
+        return m_create_result_set(memstore->used_size, memstore->items);
+}
+
 /** if the machine powers off during reset, may have chance of losing data, TODO fix it in the later release **/
 public Memstore* reset_memstore(Memstore *memstore, int flushed_size){
 		logg(INFO, "The memstore resetting process for tablet %d has begin.", memstore->tablet_id);
