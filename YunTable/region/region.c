@@ -57,6 +57,14 @@ private Tablet* get_tablet(List* tabletList, char *table_name){
 		return found;
 }
 
+private boolean tablet_exist(List* tabletList, char *table_name){
+		if(get_tablet(tabletList, table_name) == NULL){
+			return false;
+		}else{
+			return true;
+		}
+}
+
 /** If the tablet has been found, the method will return NULL **/
 private Tablet* get_tablet_by_id(List* tabletList, int tablet_id){
 		Tablet *tablet = NULL, *temp = NULL;
@@ -315,6 +323,8 @@ public RPCResponse* handler_region_request(char *cmd, List* params){
 			byte* result_set_bytes = get_param(params, 1);
 			if(table_name == NULL || result_set_bytes == NULL){
 				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
+			}else if(!tablet_exist(regionInst->tabletList, table_name)){
+				rpcResponse = create_rpc_response(ERROR_TABLET_NOT_EXIST, 0, NULL);
 			}else{
 				ResultSet* resultSet = byte_to_result_set(result_set_bytes);
 				boolean bool = put_data_region(table_name, resultSet);
@@ -325,6 +335,8 @@ public RPCResponse* handler_region_request(char *cmd, List* params){
 			char* row_key = get_param(params, 1);
 			if(table_name == NULL || row_key == NULL){
 				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
+			}else if(!tablet_exist(regionInst->tabletList, table_name)){
+				rpcResponse = create_rpc_response(ERROR_TABLET_NOT_EXIST, 0, NULL);
 			}else{
 				ResultSet* resultSet = query_row_region(table_name, row_key);
 				Buf* buf = result_set_to_byte(resultSet);
@@ -335,6 +347,8 @@ public RPCResponse* handler_region_request(char *cmd, List* params){
 			char* table_name = get_param(params, 0);
 			if(table_name == NULL){
 				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
+			}else if(!tablet_exist(regionInst->tabletList, table_name)){
+				rpcResponse = create_rpc_response(ERROR_TABLET_NOT_EXIST, 0, NULL);
 			}else{
 				ResultSet* resultSet = query_all_region(table_name);
 				Buf* buf = result_set_to_byte(resultSet);
@@ -345,6 +359,8 @@ public RPCResponse* handler_region_request(char *cmd, List* params){
 			char* table_name = get_param(params, 0);
 			if(table_name == NULL){
 				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
+			}else if(!tablet_exist(regionInst->tabletList, table_name)){
+				rpcResponse = create_rpc_response(ERROR_TABLET_NOT_EXIST, 0, NULL);
 			}else{
 				char* metadata = get_metadata_region(table_name);
 				rpcResponse = create_rpc_response(SUCCESS, strlen(metadata), metadata);
@@ -357,6 +373,8 @@ public RPCResponse* handler_region_request(char *cmd, List* params){
 			char* table_name = get_param(params, 0);
 			if(table_name == NULL){
 				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
+			}else if(!tablet_exist(regionInst->tabletList, table_name)){
+				rpcResponse = create_rpc_response(ERROR_TABLET_NOT_EXIST, 0, NULL);
 			}else{
 				int used_size = tablet_used_size_region(table_name);
 				char* string = m_itos(used_size);
@@ -370,6 +388,8 @@ public RPCResponse* handler_region_request(char *cmd, List* params){
 			if(target_conn == NULL || table_name == NULL || begin_timestamp_bytes == NULL
 					|| end_timestamp_bytes == NULL){
 				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
+			}else if(!tablet_exist(regionInst->tabletList, table_name)){
+				rpcResponse = create_rpc_response(ERROR_TABLET_NOT_EXIST, 0, NULL);
 			}else{
 				long long begin_timestamp = btoll(begin_timestamp_bytes);
 				long long end_timestamp = btoll(end_timestamp_bytes);
