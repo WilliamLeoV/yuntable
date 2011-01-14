@@ -398,6 +398,8 @@ public RPCResponse* handler_region_request(char *cmd, List* params){
 			}
 		}else if(match(GET_ROLE_CMD, cmd)){
 			rpcResponse = create_rpc_response(SUCCESS, strlen(REGION_KEY), m_cpy(REGION_KEY));
+		}else{
+			rpcResponse = create_rpc_response(ERROR_WRONG_CMD, 0, NULL);
 		}
 		return rpcResponse;
 }

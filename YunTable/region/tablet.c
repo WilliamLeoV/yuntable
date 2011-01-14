@@ -243,7 +243,7 @@ private int get_disk_usage(Tablet *tablet){
 			if(dp->d_type != 4){
 				char *file_path = m_cats(3, tablet->folder, FOLDER_SEPARATOR_STRING, dp->d_name);
 				int file_size = get_file_size(file_path);
-				logg(INFO, "The file %s's disk_usage:%d\n", dp->d_name, file_size);
+				logg(INFO, "The file %s's disk_usage:%d.", dp->d_name, file_size);
 				disk_usage += file_size/MB;
 				free2(file_path);
 			}
