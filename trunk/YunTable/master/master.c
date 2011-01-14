@@ -457,6 +457,8 @@ public RPCResponse* handler_master_request(char *cmd, List* params){
 			rpcResponse = create_rpc_response(SUCCESS, strlen(metadata), m_cpy(metadata));
 		}else if(match(GET_ROLE_CMD, cmd)){
 			rpcResponse = create_rpc_response(SUCCESS, strlen(MASTER_KEY), m_cpy(MASTER_KEY));
+		}else{
+			rpcResponse = create_rpc_response(ERROR_WRONG_CMD, 0, NULL);
 		}
 		return rpcResponse;
 }
