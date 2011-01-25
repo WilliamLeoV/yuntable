@@ -61,7 +61,9 @@ public Key* get_last_key(ResultSet* resultSet);
 
 public Key* get_first_key(ResultSet* resultSet);
 
-public int cmp_item(const void* item1_void, const void* item2_void);
+public int cmp_item_void(const void* item1_void, const void* item2_void);
+
+public int cmp_item(Item* item1, Item* item2);
 
 public int cmp_key_with_row_key(const Key *key, const char* row_key);
 
@@ -80,5 +82,7 @@ public ResultSet* m_create_result_set(int item_size, Item **items);
 public void print_result_set_in_nice_format(ResultSet* resultSet);
 
 public ResultSet* m_combine_result_set(ResultSet* set0, ResultSet* set1);
+
+public ResultSet* cleansing(ResultSet* set);
 
 #endif /* ITEM_H_ */
