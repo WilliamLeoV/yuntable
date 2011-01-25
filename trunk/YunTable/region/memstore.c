@@ -77,11 +77,8 @@ public void append_memstore(Memstore *memstore, Item *item){
 			memstore->end_timestamp = timestamp;
 }
 
-public ResultSet* get_all_sorted_items_memstore(Memstore *memstore){
-        return m_create_result_set(memstore->sorted_size, memstore->items);
-}
-
 public ResultSet* get_all_items_memstore(Memstore *memstore){
+		sort_memstore(memstore);
         return m_create_result_set(memstore->used_size, memstore->items);
 }
 
@@ -110,29 +107,10 @@ public Memstore* reset_memstore(Memstore *memstore, int flushed_size){
         return memstore;
 }
 
-private ResultSet* query_unsorted_part(Memstore* memstore, char* row_key){
-        List *itemList = list_create();
-        int i=0;
-        for(i=memstore->sorted_size; i<memstore->used_size; i++){
-			if(cmp_item_with_row_key(memstore->items[i], row_key)==0)
-				list_append(itemList, memstore->items[i]);
-        }
-        ResultSet* set = m_item_list_to_result_set(itemList);
-        list_destory(itemList, only_free_struct);
-        return set;
-}
-
 public ResultSet* query_memstore_by_row_key(Memstore* memstore, char* row_key){
-        ResultSet* combined_set;
-        //step 0. searching the sorted part by using bsearch algorithm
-        ResultSet* set1 = found_items_by_row_key(memstore->sorted_size, memstore->items, row_key);
-        //step 1. query unsorted part of memstore
-        ResultSet* set2 = query_unsorted_part(memstore, row_key);
-        if (set1 && set2) {
-            combined_set = m_combine_result_set(set1, set2);
-        }
-        frees(2, set1, set2);
-        return combined_set;
+		sort_memstore(memstore);
+		ResultSet* set = found_items_by_row_key(memstore->sorted_size, memstore->items, row_key);
+		return set;
 }
 
 public ResultSet* query_memstore_by_timestamp(Memstore* memstore, int begin_timestamp, int end_timestamp){
@@ -148,10 +126,16 @@ public ResultSet* query_memstore_by_timestamp(Memstore* memstore, int begin_time
         return m_item_list_to_result_set(itemList);
 }
 
+/** This method will sort all items inside the memstore, if no new stuff nee **/
 public void sort_memstore(Memstore* memstore){
-        int sorted_size = memstore->used_size;
-        qsort(memstore->items, sorted_size, sizeof(Item *), cmp_item);
-        memstore->sorted_size = sorted_size;
+		//If there are some items inside memstore has not been sorted
+		if(memstore->used_size > memstore->sorted_size){
+			logg(DEBUG, "Sorting the memstore for tablet %d now, and the size of unsorted item0000000000 is %d.",
+					memstore->tablet_id, memstore->used_size - memstore->sorted_size);
+	        int new_sorted_size = memstore->used_size;
+	        qsort(memstore->items, new_sorted_size, sizeof(Item *), cmp_item_void);
+	        memstore->sorted_size = new_sorted_size;
+		}
 }
 
 public char* get_memstore_metadata(Memstore* memstore){
