@@ -332,26 +332,7 @@ public void startup(int servPort, RPCResponse* (*handler_request)(char *cmd, Lis
 }
 
 
-#ifdef CONN_TEST
-void testcase_for_connect_conn(void){
-        char* conn = "127.0.0.1:8000";
-        char* cmd = "test_cmd";
-        List* params =  generate_charactor_params(1, m_cpy("param1"));
-        byte* result = connect_conn(conn, cmd, params);
-        printf("%s\n", result);
-}
-
-Buf* handler_test_request(char *cmd, List* params){
-        printf("%s\n", cmd);
-        printf("%s\n", get_param(params, 0));
-        char* result = "test";
-        return create_buf(strlen(result), result);
-}
-
-void testcase_for_start_daemon(void){
-        startup(8000, handler_test_request);
-}
-
+#ifdef RPC_TEST
 void testcase_for_rpc_request(void){
         List* params = generate_charactor_params(3 ,m_cpy("test1") ,m_cpy("test2") ,m_cpy("test3"));
         char* cmd = "test_cmd";
@@ -368,7 +349,7 @@ void testcase_for_rpc_request(void){
 }
 
 void testcase_for_rpc_response(void){
-        RPCResponse* rpcResponse = create_rpc_response(SUCCESS_CONN,  5, m_cpy("test5"));
+        RPCResponse* rpcResponse = create_rpc_response(SUCCESS,  5, m_cpy("test5"));
         Buf* buf = rpc_response_to_byte(rpcResponse);
         FILE *fp = fopen("test", "wb");
         fwrite(get_buf_data(buf), get_buf_index(buf), 1, fp);
@@ -407,16 +388,16 @@ void testcase_for_params_byte(void){
 void testcase_for_memcat(void){
         int testInt = 1;
         char *testChar = "ad";
-        Buf *buf = init_buf(BIG_BUF_SIZE);
+        Buf *buf = init_buf(1000);
         buf_cat(buf, &testInt, sizeof(int));
         buf_cat(buf, testChar, strlen(testChar));
         FILE *fp = fopen("test", "wb");
         fwrite(get_buf_data(buf), sizeof(int) + strlen(testChar), 1, fp);
         fclose(fp);
         fp = fopen("test", "rb");
-        Buf *buf2 = init_buf(BIG_BUF_SIZE);
+        Buf *buf2 = init_buf(1000);
         fread(get_buf_data(buf2), 6, 1, fp);
-        int testInt2 = buf_load_int(buf2, 4);
+        int testInt2 = buf_load_int(buf2);
         char *testChar2 = buf_load(buf2, 2);
         printf("%d %s\n", testInt2, testChar2);
         fclose(fp);

@@ -424,26 +424,26 @@ public char* get_yfile_metadata(YFile* yfile){
 #ifdef YFILE_TEST
 void testcase_for_create_new_yfile(void){
 	char *file_path = "test.yfile";
-	char *column_family = "default_cf";
 	char *table_name = "test_table";
 	char *row_key = "me";
 	char *column_name = "name";
 	char *value = "ike";
-	Item *item = m_create_item(row_key, column_family, column_name, value);
+	Item *item = m_create_item(row_key, column_name, value);
 	Item** items = malloc2(sizeof(Item *) * 1);
 	items[0] = item;
 	ResultSet* resultSet = m_create_result_set(1,items);
-	create_new_yfile(file_path, resultSet, column_family, table_name);
+	create_new_yfile(file_path, resultSet, table_name);
 }
 
 void testcase_for_loading_yfile(void){
 	char *file_path = "test.yfile";
 	YFile *yfile = loading_yfile(file_path);
-	printf("%s %s \n",yfile->trailer->column_family, yfile->trailer->table_name);
+	printf("%s \n", yfile->trailer->table_name);
 	printf("%d \n",yfile->indexBlock->index_count);
 }
 
 int main(void){
+	setup_logging(DISABLE, "");
 	testcase_for_create_new_yfile();
 	testcase_for_loading_yfile();
 	return 1;

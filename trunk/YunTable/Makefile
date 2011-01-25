@@ -19,12 +19,6 @@ region:
 yfileTest:
 	$(CC) $(CFLAGS) ${UTIL_SRC} region/yfile.c -D YFILE_TEST -o yfileTest
 	
-testMaster:
-	$(CC) $(CFLAGS) ${UTIL_SRC} testcase/master_testcase.c -o testMaster
-	
-testRegion:
-	$(CC) $(CFLAGS) ${UTIL_SRC} testcase/region_testcase.c -o testRegion
-	
 confTest:
 	$(CC) $(CFLAGS)	${UTIL_SRC} -D CONF_TEST -o confTest 
 	
@@ -37,7 +31,7 @@ listTest:
 utilTest:
 	$(CC) $(CFLAGS)	${UTIL_SRC} -D UTILS_TEST -o utilTest
 
-connTest:
-	$(CC) $(CFLAGS)	${UTIL_SRC} -D CONN_TEST -o connTest 
+rpcTest:
+	$(CC) $(CFLAGS)	${UTIL_SRC} -D RPC_TEST -o rpcTest 
 
 	
