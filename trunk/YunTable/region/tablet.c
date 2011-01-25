@@ -142,6 +142,7 @@ private ResultSet* query_yfiles_by_timestamp(List* yfileList, int begin_timestam
 }
 
 public ResultSet* query_tablet_row_key(Tablet *tablet, char* row_key){
+		//TODO justifies the use of mutex lock
 		pthread_mutex_lock(&tablet->flushing_mutex);
 
 		ResultSet* memstoreSet = query_memstore_by_row_key(tablet->memstore, row_key);
@@ -217,8 +218,7 @@ public void refresh_tablet(Tablet *tablet, int hotnessValue){
 		//Memstore Flushing Part
 		if(memstore_full(tablet->memstore)){
 			logg(INFO, "The memstore for %s is flushing to yfile now.", tablet->table_name);
-			sort_memstore(tablet->memstore);
-			ResultSet* resultSet = get_all_sorted_items_memstore(tablet->memstore);
+			ResultSet* resultSet = get_all_items_memstore(tablet->memstore);
 			int flushed_size = resultSet->size;
 			char *next_yfile_path = get_next_yfile_path(tablet);
 			YFile *yfile = create_new_yfile(next_yfile_path, resultSet, tablet->table_name);
