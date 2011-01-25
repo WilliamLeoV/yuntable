@@ -453,30 +453,27 @@ public char* get_conf_path_from_argv(int argc, char *argv[], char* default_conf_
 
 #ifdef CONF_TEST
 void testcase_for_table_info_list(void){
+		//TODO this testcase requires a fully prepare conf file
         char* file_path = "conf/master.conf";
         List* tableInfoList = load_table_info_list(file_path);
         int i=0, table_info_size=list_size(tableInfoList);
         for(i=0; i<table_info_size; i++){
                 TableInfo* tableInfo = list_get(tableInfoList, i);
                 printf("%s\n",tableInfo->table_name);
-                int j=0, column_family_size=list_size(tableInfo->columnFamilyInfoList);
-                for(j=0; j<column_family_size; j++){
-                        ColumnFamilyInfo* columnFamilyInfo = list_get(tableInfo->columnFamilyInfoList, j);
-                        printf("%s\n",columnFamilyInfo->column_family);
-                        int k=0, replica_queue_size=list_size(columnFamilyInfo->replicaQueueList);
-                        for(k=0; k<replica_queue_size; k++){
-                                ReplicaQueue* replicaQueue = list_get(columnFamilyInfo->replicaQueueList, k);
-                                printf("%d\n",replicaQueue->id);
-                                int l=0, tablet_info_size=list_size(replicaQueue->tabletInfoList);
-                                for(l=0; l<tablet_info_size; l++){
-                                        TabletInfo* tabletInfo = list_get(replicaQueue->tabletInfoList, l);
-                                        printf("%s,", tabletInfo->regionInfo->conn);
-                                        printf("%d,", tabletInfo->begin_timestamp);
-                                        printf("%d\n", tabletInfo->end_timestamp);
-                                }
-                        }
-                }
-        }
+				int k=0, replica_queue_size=list_size(tableInfo->replicaQueueList);
+				for(k=0; k<replica_queue_size; k++){
+						ReplicaQueue* replicaQueue = list_get(tableInfo->replicaQueueList, k);
+						printf("%d\n",replicaQueue->id);
+						int l=0, tablet_info_size=list_size(replicaQueue->tabletInfoList);
+						for(l=0; l<tablet_info_size; l++){
+								TabletInfo* tabletInfo = list_get(replicaQueue->tabletInfoList, l);
+								printf("%s,", tabletInfo->regionInfo->conn);
+								printf("%lld,", tabletInfo->begin_timestamp);
+								printf("%lld\n", tabletInfo->end_timestamp);
+								}
+				}
+
+		}
         flush_table_info_list(file_path, tableInfoList);
 }
 
