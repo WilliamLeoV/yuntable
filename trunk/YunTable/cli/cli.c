@@ -150,9 +150,10 @@ private boolean check_problem_region(char* problem_region_conn){
 }
 
 /**
- * sample cmd: add master:172.0.0.1:8301
- * sample cmd: add region:172.0.0.1:8302
- * sample cmd: add table:people //The input table name shouldn't contain space
+ * sample cmd:
+ * 		add master:172.0.0.1:8301
+ * 		add region:172.0.0.1:8302
+ *  	add table:people //The input table name shouldn't contain space
  */
 public char* add(Tokens* space_tokens){
 		char* msg = NULL;
@@ -297,8 +298,14 @@ private ResultSet* query_table(CliCache *cliCache, TableInfo* tableInfo, char *r
 			int j=0, tt_size=list_size(replicaQueue->tabletInfoList);
 			for(j=0; j<tt_size; j++){
 				TabletInfo* tabletInfo = list_get(replicaQueue->tabletInfoList, j);
-				List* params = generate_charactor_params(2, tableInfo->table_name, row_key);
-				RPCRequest* rpcRequest = create_rpc_request(QUERY_ROW_REGION_CMD, params);
+				RPCRequest* rpcRequest = NULL;
+				if(row_key != NULL){
+					List* params = generate_charactor_params(2, tableInfo->table_name, row_key);
+					rpcRequest = create_rpc_request(QUERY_ROW_REGION_CMD, params);
+				}else{
+					List* params = generate_charactor_params(1, tableInfo->table_name);
+					rpcRequest = create_rpc_request(QUERY_ALL_REGION_CMD, params);
+				}
 				RPCResponse* rpcResponse = connect_conn(tabletInfo->regionInfo->conn, rpcRequest);
 				int status_code = get_status_code(rpcResponse);
 				if(status_code == SUCCESS || get_result_length(rpcResponse) != 0){
@@ -327,7 +334,8 @@ private ResultSet* query_table(CliCache *cliCache, TableInfo* tableInfo, char *r
 		return resultSet;
 }
 
-/** sample cmd: get table:people row:me **/
+/** sample cmd:
+ * get table:people row:me **/
 public char* get(Tokens* space_tokens){
 		char *msg = NULL;
     	char *table_name = get_table_name(space_tokens->tokens[1]);
@@ -339,9 +347,12 @@ public char* get(Tokens* space_tokens){
 			return ERR_MSG_TABLE_NOT_CREATED;
         }
         ResultSet* resultSet = NULL;
-        if(space_tokens->size <= 2){
-        	return ERR_MSG_CMD_NOT_COMPLETE;
-        }else{
+        //Goes to get all method
+        if(space_tokens->size == 2){
+        	resultSet = query_table(cliCacheInst, tableInfo, NULL);
+        }
+        //Goes to get by row key method
+        else{
 			Tokens *fenn_tokens = init_tokens(space_tokens->tokens[2],':');
 			if(!match(fenn_tokens->tokens[0], ROW_KEY)){
 				msg = ERR_MSG_NO_ROW_KEY;
