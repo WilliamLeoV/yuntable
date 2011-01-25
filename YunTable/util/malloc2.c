@@ -14,19 +14,10 @@ private void oom(){
 	    sleep(1);
 	    abort();
 }
-/** The handler for zero size memory allocation situation **/
-private void zero_alloc(){
-		logg(EMERG, "The Allocation Size is zero, please check code, it may have some problem!");
-		sleep(1);
-		abort();
-}
 
 /** mallocs is memory allocation method for string, will have one more byte at the end for "\0", plus
  * the allocated memory area will be zeroed **/
 public void* mallocs(size_t size){
-		if(size == 0){
-			zero_alloc();
-		}
 		size = size + 1;
 	    void* ptr = malloc2(size);
 	    memset(ptr, 0, size);
@@ -35,9 +26,6 @@ public void* mallocs(size_t size){
 
 /** malloc2 is safe implementaion of malloc, will sum the total usage of memory for information **/
 public void* malloc2(size_t size){
-		if(size == 0){
-			zero_alloc();
-		}
         void* ptr = malloc(size);
         if(ptr == NULL) {
 		    oom();
@@ -48,7 +36,7 @@ public void* malloc2(size_t size){
 public void* realloc2(void* ptr, size_t size){
 		void *newptr = realloc(ptr, size);
 		if (newptr == NULL){
-			 oom();
+			oom();
 		}
 		return newptr;
 }
