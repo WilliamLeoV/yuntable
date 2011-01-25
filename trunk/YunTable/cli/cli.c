@@ -372,7 +372,7 @@ public char* get(Tokens* space_tokens){
         return msg;
 }
 
-private char* get_table_metadata(TableInfo* tableInfo){
+private void show_table_metadata(TableInfo* tableInfo){
 		printf("The Meta Info about the Table:%s\n", tableInfo->table_name);
 		int i=0, rq_size=list_size(tableInfo->replicaQueueList);
 		printf("The Number of replica queue:%d\n", rq_size);
@@ -402,23 +402,44 @@ private char* get_table_metadata(TableInfo* tableInfo){
 				destory_rpc_response(rpcResponse);
 			}
 		}
-		return NULL;
 }
 
-private char* get_master_metadata(CliCache* cliCache){
-		char* result = NULL;
+private void show_master_metadata(CliCache* cliCache){
 		RPCRequest* rpcRequest = create_rpc_request(GET_METADATA_MASTER_CMD, NULL);
 		RPCResponse* rpcResponse = connect_conn(cliCache->master_conn, rpcRequest);
 		int status_code = get_status_code(rpcResponse);
 		if(status_code == SUCCESS || get_result_length(rpcResponse) > 0){
-			result = get_result(rpcResponse);
+			char* result = get_result(rpcResponse);
+			printf("%s", result);
 		}else{
 			printf("Sad News! The Master node has problem:%s.\n", get_error_message(status_code));
 		}
 		destory_rpc_request(rpcRequest);
 		destory_rpc_response(rpcResponse);
-		return result;
 }
+
+/** sample cmd:
+ * 	 1) show table:people // which retrieve the table's metadata
+ *   2) show master  //which retrieve the master's metadata
+ * **/
+public char* show(Tokens* space_tokens){
+		//Go to Show Master procedure or Show Table
+		if(match(space_tokens->tokens[1], MASTER_KEY)){
+			show_master_metadata(cliCacheInst);
+		}else{
+			char *table_name = get_table_name(space_tokens->tokens[1]);
+			if(table_name == NULL) {
+				return ERR_MSG_CMD_NOT_COMPLETE;
+			}
+			TableInfo *tableInfo = search_and_update_table_info(cliCacheInst, table_name);
+			if (tableInfo == NULL) {
+				return ERR_MSG_TABLE_NOT_CREATED;
+			}
+			show_table_metadata(tableInfo);
+		}
+		return NULL;
+}
+
 
 /** Sample cmd:
  * 		del table:people row:me //delete the row key is "me" the data
@@ -463,27 +484,6 @@ public char* del(Tokens* space_tokens){
 		}
 		free_tokens(fenn_tokens);
 		return msg;
-}
-
-/** sample cmd:
- * 	 1) show table:people // which retrieve the table's metadata
- *   2) show master  //which retrieve the master's metadata
- * **/
-public char* show(Tokens* space_tokens){
-		//Go to Show Master procedure or Show Table
-		if(match(space_tokens->tokens[1], MASTER_KEY)){
-			return get_master_metadata(cliCacheInst);
-		}else{
-			char *table_name = get_table_name(space_tokens->tokens[1]);
-			if(table_name == NULL) {
-				return ERR_MSG_CMD_NOT_COMPLETE;
-			}
-			TableInfo *tableInfo = search_and_update_table_info(cliCacheInst, table_name);
-			if (tableInfo == NULL) {
-				return ERR_MSG_TABLE_NOT_CREATED;
-			}
-			return get_table_metadata(tableInfo);
-		}
 }
 
 public void help(void){
