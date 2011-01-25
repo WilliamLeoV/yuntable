@@ -27,19 +27,19 @@ struct _RPCResponse{
 
 /** If the status code is not qualified, the method will return **/
 public char* get_error_message(int status_code){
-	if(status_code ==  CONN_FAIL){
-		return CONN_FAIL_MSG;
-	}else if(status_code == ERROR_NO_CMD){
-		return ERROR_NO_CMD_MSG;
-	}else if(status_code == ERROR_WRONG_CMD){
-		return ERROR_WRONG_CMD_MSG;
-	}else if(status_code == ERROR_NO_PARAM){
-		return ERROR_NO_PARAM_MSG;
-	}else if(status_code == ERROR_TABLET_NOT_EXIST){
-		return ERROR_TABLET_NOT_EXIST_MSG;
-	}else{
-		return UNDEFINED_STATUS_CODE_MSG;
-	}
+		if(status_code ==  CONN_FAIL){
+			return CONN_FAIL_MSG;
+		}else if(status_code == ERROR_NO_CMD){
+			return ERROR_NO_CMD_MSG;
+		}else if(status_code == ERROR_WRONG_CMD){
+			return ERROR_WRONG_CMD_MSG;
+		}else if(status_code == ERROR_NO_PARAM){
+			return ERROR_NO_PARAM_MSG;
+		}else if(status_code == ERROR_TABLET_NOT_EXIST){
+			return ERROR_TABLET_NOT_EXIST_MSG;
+		}else{
+			return UNDEFINED_STATUS_CODE_MSG;
+		}
 }
 
 public int get_status_code(RPCResponse* rpcResponse){
@@ -77,6 +77,8 @@ public List* add_int_param(List* params, int param_value){
         list_append(params, m_itos(param_value));
         return params;
 }
+
+
 
 public List* add_param(List* params, int param_size, byte* param_value){
         list_append(params, m_itos(param_size));
