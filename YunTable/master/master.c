@@ -43,9 +43,11 @@ private void update_region_info(RegionInfo* regionInfo){
 	    destory_rpc_response(rpcResponse);
 }
 
-private int cmp_region_info(void const* regionInfo1_void, void const* regionInfo2_void){
-		RegionInfo const* regionInfo1 = (RegionInfo const*)regionInfo1_void;
-		RegionInfo const* regionInfo2 = (RegionInfo const*)regionInfo2_void;
+/** Currently only used at qsort **/
+private int cmp_region_info_void(void const* regionInfo1_void, void const* regionInfo2_void){
+	   //first load 4byte of address, then converted to item pointer, and only tested at 32bit
+		RegionInfo const* regionInfo1 = (RegionInfo*)(*(long*)regionInfo1_void);
+		RegionInfo const* regionInfo2 = (RegionInfo*)(*(long*)regionInfo2_void);
 		if(regionInfo1->connecting == regionInfo2->connecting){
 			return regionInfo1->avail_space > regionInfo2->avail_space;
 		}else
@@ -72,7 +74,7 @@ private int get_tablet_used_size(RegionInfo* regionInfo, char* table_name){
 private List* sort_region_info_list(List* regionInfoList){
 		int size = list_size(regionInfoList);
 		RegionInfo** regionInfos = (RegionInfo**)list_to_array(regionInfoList);
-		qsort(regionInfos, size, sizeof(RegionInfo*),  cmp_region_info);
+		qsort(regionInfos, size, sizeof(RegionInfo*),  cmp_region_info_void);
 		list_destory(regionInfoList, only_free_struct);
 		regionInfoList = array_to_list((void**)regionInfos, size);
 		return regionInfoList;
