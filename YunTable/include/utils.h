@@ -48,6 +48,8 @@ public boolean cmp(char* dest, char* src, int len);
 
 public boolean match(char* dest, char *src);
 
+public int match_int(char* dest, char* src);
+
 public boolean match_for_list_find(void* dest, void *src);
 
 public boolean match_tail(char* dest, char *src);

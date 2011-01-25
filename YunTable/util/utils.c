@@ -89,12 +89,17 @@ public boolean match(char* dest, char *src){
 		return cmp(dest, src, max_len);
 }
 
+/**The match method for returning int compare result**/
+public int match_int(char* dest, char* src){
+		int max_len = max(strlen(dest), strlen(src));
+		return strncasecmp(dest, src, max_len);
+}
+
 /** the match method for list find **/
 public boolean match_for_list_find(void* dest, void *src){
         char* tmp_dest = (char*)dest;
         char* tmp_src = (char*)src;
-        int max_len = max(strlen(tmp_dest), strlen(tmp_src));
-        return cmp(tmp_dest, tmp_src, max_len);
+        return match(tmp_dest, tmp_src);
 }
 
 /** if the tail of dest is as same as src **/
