@@ -465,33 +465,6 @@ public ResultSet* cleansing(ResultSet* set){
 }
 
 #ifdef ITEM_TEST
-void testcase_for_combine_and_cleansing_result_set(){
-		Item* item1 = m_create_item("1", "column_qualifier", "value");
-		Item* item2 = m_create_item("2", "column_qualifier", "value");
-		Item* item3 = m_create_item("2", "column_qualifier", NULL);
-		Item* item4 = m_create_item("3", "column_qualifier", "value");
-		Item* item5 = m_create_item("3", NULL, NULL);
-		Item* item6 = m_create_item("6", "column_qualifier", "value");
-		Item** items1 = malloc2(sizeof(Item*) * 4);
-		items1[0] = item1;
-		items1[1] = item2;
-		items1[2] = item3;
-		items1[3] = item4;
-		ResultSet* leftSet = m_create_result_set(4, items1);
-		Item** items2 = malloc2(sizeof(Item*) * 4);
-		items2[0] = item1;
-		items2[1] = item2;
-		items2[2] = item5;
-		items2[3] = item6;
-		ResultSet* rightSet = m_create_result_set(4, items2);
-		ResultSet* resultSet = m_combine_result_set(leftSet, rightSet);
-		printf("The ResultSet after combining.\n");
-		print_result_set_in_nice_format(resultSet);
-		resultSet = cleansing(resultSet);
-		printf("The ResultSet after cleansing.\n");
-		print_result_set_in_nice_format(resultSet);
-}
-
 void testcase_for_result_set_to_byte(void){
         int index = 2;
         Item** items = malloc2(sizeof(Item *) * index);
@@ -512,7 +485,7 @@ void testcase_for_qsort_item(void){
         items[1] = m_create_item("c","","");
         items[2] = m_create_item("d","","");
         items[3] = m_create_item("a","","");
-        qsort(items, index, sizeof(Item *), cmp_item);
+        qsort(items, index, sizeof(Item *), cmp_item_void);
         printf("%s\n",items[0]->key->row_key);
 }
 
@@ -574,6 +547,33 @@ void testcase_for_result_set_serializing(void){
         for(i=0; i<resultSet2->size; i++) print_item(resultSet2->items[i]);
 }
 
+void testcase_for_combine_and_cleansing_result_set(){
+		Item* item1 = m_create_item("1", "column_qualifier", "value");
+		Item* item2 = m_create_item("2", "column_qualifier", "value");
+		Item* item3 = m_create_item("2", "column_qualifier", NULL);
+		Item* item4 = m_create_item("3", "column_qualifier", "value");
+		Item* item5 = m_create_item("3", NULL, NULL);
+		Item* item6 = m_create_item("6", "column_qualifier", "value");
+		Item** items1 = malloc2(sizeof(Item*) * 4);
+		items1[0] = item1;
+		items1[1] = item2;
+		items1[2] = item3;
+		items1[3] = item4;
+		ResultSet* leftSet = m_create_result_set(4, items1);
+		Item** items2 = malloc2(sizeof(Item*) * 4);
+		items2[0] = item1;
+		items2[1] = item2;
+		items2[2] = item5;
+		items2[3] = item6;
+		ResultSet* rightSet = m_create_result_set(4, items2);
+		ResultSet* resultSet = m_combine_result_set(leftSet, rightSet);
+		printf("The ResultSet after combining.\n");
+		print_result_set_in_nice_format(resultSet);
+		resultSet = cleansing(resultSet);
+		printf("The ResultSet after cleansing.\n");
+		print_result_set_in_nice_format(resultSet);
+}
+
 void test_suite(void){
         printf("The Test Suit of item is starting\n");
         printf("0) testcase_for_result_set_to_byte\n");
@@ -588,12 +588,13 @@ void test_suite(void){
         testcase_for_result_set_serializing();
         printf("5) testcase_for_qsort_item\n");
         testcase_for_qsort_item();
+        printf("6) testcase_for_combine_and_cleansing_result_set\n");
+        testcase_for_combine_and_cleansing_result_set();
         printf("Completed Successfully\n");
 }
 
 int main(int argc, char *argv[]){
-        //test_suite();
-		testcase_for_combine_and_cleansing_result_set();
+        test_suite();
 		return 1;
 }
 #endif
