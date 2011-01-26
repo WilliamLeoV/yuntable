@@ -11,11 +11,12 @@ rm confTest
 rm itemTest
 rm listTest
 rm utilTest
-rm connTest
+rm rpcTest
 rm master.log
 rm region.log
 rm test.log
 rm test.yfile
+rm test
 
 echo "Replacing the current conf file with the conf templates"
 cp conf/cli.conf.template conf/cli.conf
