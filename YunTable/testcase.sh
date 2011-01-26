@@ -28,5 +28,26 @@ echo "Step 2-1, Compiling Executable"
 sh build.sh
 echo "\n"
 echo "Step 2-2, Running the short test case"
+./yuncli -cmd add master:127.0.0.1:8301
+echo ""
+./yuncli -cmd add region:127.0.0.1:8302
+echo ""
+./yuncli -cmd add table:people
+echo ""
+./yuncli -cmd show master
+echo ""
+./yuncli -cmd put table:people row:me name:"ike" sex:"male"
+echo ""
+./yuncli -cmd put table:people row:me1 name:"ikea" sex:"female"
+echo ""
+./yuncli -cmd get table:people row:me
+echo ""
+./yuncli -cmd show table:people
+echo ""
+./yuncli -cmd del table:people row:me
+echo ""
+./yuncli -cmd del table:people row:me1 sex
+echo ""
+./yuncli -cmd get table:people
 
 echo "All the testcases have been "
