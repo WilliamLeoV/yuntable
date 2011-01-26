@@ -23,7 +23,10 @@ echo "\n"
 echo "\n"
 ./yfileTest
 echo "\n\n"
-echo "Step 1, Test Case"
-
+echo "Step 2, Short Test Case"
+echo "Step 2-1, Compiling Executable"
+sh build.sh
+echo "\n"
+echo "Step 2-2, Running the short test case"
 
 echo "All the testcases have been "
