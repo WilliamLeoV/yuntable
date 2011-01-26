@@ -101,6 +101,8 @@ public List* string_to_list(char* string);
 
 public char* list_to_string(List* list);
 
+public char* array_to_string(char** array, int begin_index, int end_index);
+
 public int generate_random_int();
 
 public long long get_current_time_stamp();
