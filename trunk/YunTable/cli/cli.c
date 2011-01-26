@@ -92,8 +92,12 @@ private void update_table_info_list(CliCache* cliCache){
 private TableInfo* search_and_update_table_info(CliCache* cliCache, char* table_name){
         TableInfo *tableInfo = get_table_info(cliCache->tableInfoList, table_name);
         if(tableInfo == NULL){
-			tableInfo = get_table_info_from_master(cliCache->master_conn, table_name);
-			if(tableInfo != NULL) list_append(cliCache->tableInfoList, tableInfo);
+        	if(cliCache->master_conn == NULL){
+        		printf("%s.\n", ERR_MSG_NO_MASTER);
+        	}else{
+        		tableInfo = get_table_info_from_master(cliCache->master_conn, table_name);
+        		if(tableInfo != NULL) list_append(cliCache->tableInfoList, tableInfo);
+        	}
         }
         return tableInfo;
 }
@@ -313,9 +317,6 @@ private ResultSet* query_table(CliCache *cliCache, TableInfo* tableInfo, char *r
 					//The m_combine_result_set method will remove all duplicated sets
 					ResultSet* set2 = m_combine_result_set(resultSet, set1);
 					//Cleansing some deleted stuff
-					printf("-----\n");
-					print_result_set_in_nice_format(set2);
-					printf("-----\n");
 					cleansing(set2);
 					free_result_set(set1);
 					free_result_set(resultSet);
@@ -405,17 +406,21 @@ private void show_table_metadata(TableInfo* tableInfo){
 }
 
 private void show_master_metadata(CliCache* cliCache){
-		RPCRequest* rpcRequest = create_rpc_request(GET_METADATA_MASTER_CMD, NULL);
-		RPCResponse* rpcResponse = connect_conn(cliCache->master_conn, rpcRequest);
-		int status_code = get_status_code(rpcResponse);
-		if(status_code == SUCCESS || get_result_length(rpcResponse) > 0){
-			char* result = get_result(rpcResponse);
-			printf("%s", result);
+		if(cliCache->master_conn == NULL){
+			printf("%s.\n", ERR_MSG_NO_MASTER);
 		}else{
-			printf("Sad News! The Master node has problem:%s.\n", get_error_message(status_code));
+			RPCRequest* rpcRequest = create_rpc_request(GET_METADATA_MASTER_CMD, NULL);
+			RPCResponse* rpcResponse = connect_conn(cliCache->master_conn, rpcRequest);
+			int status_code = get_status_code(rpcResponse);
+			if(status_code == SUCCESS || get_result_length(rpcResponse) > 0){
+				char* result = get_result(rpcResponse);
+				printf("%s", result);
+			}else{
+				printf("Sad News! The Master node has problem:%s.\n", get_error_message(status_code));
+			}
+			destory_rpc_request(rpcRequest);
+			destory_rpc_response(rpcResponse);
 		}
-		destory_rpc_request(rpcRequest);
-		destory_rpc_response(rpcResponse);
 }
 
 /** sample cmd:
@@ -508,7 +513,7 @@ public void help(void){
         printf("    Sample cmd: show table:people\n");
         printf("9)  Show master metadata information.\n");
         printf("    Sample cmd: show master\n");
-        printf("10)  Quit the console.\n");
+        printf("10) Quit the console.\n");
         printf("    Sample cmd: quit\n");
 }
 
@@ -588,13 +593,13 @@ public void start_cli_daemon(){
 
 public void slient_mode(int argc, char** argv){
 		if(argc == 2){
-			printf("%s.\n", ERR_MSG_NO_CMD_INPUT);
+			printf("%s\n", ERR_MSG_NO_CMD_INPUT);
 		}else{
 			char* cmd = array_to_string(argv, 2, argc-1);
-			printf("%s.\n",cmd);
+			printf("%s\n",cmd);
 			char* msg = process(cmd);
 			if(msg != NULL && strlen(msg) != 0){
-				printf("%s.\n", msg);
+				printf("%s\n", msg);
 			}
 		}
 }

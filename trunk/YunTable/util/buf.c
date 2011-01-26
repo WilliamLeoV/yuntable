@@ -117,5 +117,7 @@ public void destory_buf(Buf* buf){
 
 /** Won't free it data **/
 public void free_buf(Buf* buf){
-        if(buf != NULL) free2(buf);
+        if(buf != NULL){
+        	free2(buf);
+        }
 }
