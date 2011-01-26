@@ -400,6 +400,22 @@ public char* list_to_string(List* list){
         return list_to_string_by_token(list, STRING_SEPARATOR);
 }
 
+/** The begin index is starts at zero **/
+public char* array_to_string(char** array, int begin_index, int end_index){
+		char* string = NULL;
+		Buf* buf = init_buf();
+		buf_cat(buf, array[begin_index], strlen(array[begin_index]));
+		int i = 0;
+		for(i = begin_index+1; i<=end_index; i++){
+			buf_cat(buf, " ", strlen(" "));
+			char* part = array[i];
+			buf_cat(buf, part, strlen(part));
+		}
+		string = m_get_buf_string(buf);
+		free_buf(buf);
+		return string;
+}
+
 /** return should be between 0 to 100**/
 public int generate_random_int(){
         struct timeval tv;
