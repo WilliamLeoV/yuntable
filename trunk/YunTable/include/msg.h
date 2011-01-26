@@ -6,6 +6,7 @@
  **/
 
 /** Error Messages **/
+#define ERR_MSG_NO_CMD_INPUT "PLease attach cmd string if you want to use the silent mode."
 #define ERR_MSG_CMD_NOT_COMPLETE "Please input the complete cmd."
 #define ERR_MSG_NULL_STRING "The input string is NULL or invalid."
 #define ERR_MSG_WRONG_ACTION "The action you just input is not supported. Please type \"help\" for more information."

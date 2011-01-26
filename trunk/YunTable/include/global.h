@@ -24,11 +24,9 @@
 
 /**
  * The Global Header file contains all meta data that will be used throughout the project.
- *
  ***/
 
 /**  core part   **/
-
 
 #define	public		/* PUBLIC is the opposite of PRIVATE */
 #define	private	static	/* PRIVATE x limits the scope of x */
