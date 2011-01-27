@@ -89,6 +89,8 @@ typedef unsigned short boolean;
 
 #define MB		(1024 * 1024)
 
+#define Millis 1000 //1000 Millis = one second
+
 /** shared RPC Call **/
 
 #define GET_ROLE_CMD "get_role"
