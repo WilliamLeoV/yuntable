@@ -9,7 +9,7 @@
 #include "malloc2.h"
 #include "log.h"
 
-#define DEFAULT_DUPLICATE_NUM 3
+#define DEFAULT_DUPLICATE_NUM 1
 #define MIN_REGION_AVAILABLE_SIZE 100 //Unit is MB
 #define DEFAULT_MASTER_FLUSH_CHECK_INTERVAL 600 //10Min
 
