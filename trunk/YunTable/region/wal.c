@@ -85,10 +85,14 @@ public Wal* load_wal(char* file_path){
 		return wal;
 }
 
+/** Checking if the file size contains more than the magic string **/
 public boolean need_to_reload_wal(Wal *wal){
 		int file_size = get_file_size(wal->wal_file_path);
-		if(file_size <= sizeof(wal->magic)) return false;
-		else return true;
+		if(file_size <= sizeof(wal->magic)){
+			return false;
+		}else{
+			return true;
+		}
 }
 
 public void refresh_wal(Wal *wal, List* walItems){
