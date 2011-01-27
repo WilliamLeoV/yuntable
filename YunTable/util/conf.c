@@ -89,6 +89,7 @@ public void flush_key_value(char* file_path, char* key, char* value){
 
         char* new_line = m_cats(3, key, CONF_SEPARATOR_STRING, value);
         buf_cat(buf, new_line, strlen(new_line));
+        buf_cat(buf, LINE_SEPARATOR_STRING, strlen(LINE_SEPARATOR_STRING));
 
         //printf("%s\n", bytes);
         char* content = m_get_buf_string(buf);
