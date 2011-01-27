@@ -27,11 +27,13 @@ echo "Step 2, Short Test Case"
 echo "Step 2-1, Compiling Executable"
 sh build.sh
 echo "\n"
-echo "Step 2-2, Running the short test case"
+echo "Step 2-2, Set up yuncli"
 ./yuncli -cmd add master:127.0.0.1:8301
 echo ""
 ./yuncli -cmd add region:127.0.0.1:8302
-echo ""
+echo "\n"
+echo "Step 2-3 Short Test Case1: People Table"
+echo "This Short Test Case is focusing the functionality"
 ./yuncli -cmd add table:people
 echo ""
 ./yuncli -cmd show master
