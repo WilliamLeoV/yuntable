@@ -427,7 +427,7 @@ public void refresh_yfile_data_block_cache(YFile* yfile, int hotness_value){
 
 public char* get_yfile_metadata(YFile* yfile){
 		char* line1 = mallocs(LINE_BUF_SIZE);
-		sprintf(line1, "Total Number of Item: %d.\n",yfile->trailer->total_item_num);
+		sprintf(line1, "Total Number of Item inside yfile %s: %d.\n", yfile->file_path, yfile->trailer->total_item_num);
 		char* line2 = mallocs(LINE_BUF_SIZE);
 		sprintf(line2, "The First Row Key: %s.\n", get_row_key(yfile->trailer->firstKey));
 		char* line3 = mallocs(LINE_BUF_SIZE);
@@ -440,7 +440,6 @@ public char* get_yfile_metadata(YFile* yfile){
 		frees(5, line1, line2, line3, line4, line5);
 		return metadata;
 }
-
 
 #ifdef YFILE_TEST
 void testcase_for_create_new_yfile(void){
