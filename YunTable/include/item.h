@@ -49,6 +49,8 @@ public Buf* result_set_to_byte(ResultSet* resultSet);
 
 public ResultSet* byte_to_result_set(byte* buf);
 
+public void free_key(Key *key);
+
 public void free_item(Item *item);
 
 public void free_item_array(int item_size, Item** items);
