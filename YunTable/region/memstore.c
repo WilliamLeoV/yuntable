@@ -39,13 +39,15 @@ public Memstore* init_memstore(int id){
         memstore->used_size = 0;
         memstore->sorted_size = 0;
         memstore->max_allocated_size = generate_random_allocated_size();
+        memstore->begin_timestamp = 0;
+        memstore->end_timestamp = 0;
         return memstore;
 }
 
 public boolean memstore_full(Memstore* memstore){
         //if(memstore->used_size > 0) return true; a trigge that init flush every time
         //if the used size about 98% allocated size, that means the memstore is full
-        if(memstore->used_size > memstore->max_allocated_size * FLUSH_THERSHOLD_PERCENT){
+		if(memstore->used_size > memstore->max_allocated_size * FLUSH_THERSHOLD_PERCENT){
         	logg(INFO, "The memstore for tablet %d is almost full.", memstore->tablet_id);
         	return true;
         }else{
@@ -82,7 +84,9 @@ public ResultSet* get_all_items_memstore(Memstore *memstore){
         return m_create_result_set(memstore->used_size, memstore->items);
 }
 
-/** if the machine powers off during reset, may have chance of losing data, TODO fix it in the later release **/
+/**
+ * Because sometime memstore data structure will be changed during the process, so use the flushed size as the defined mark
+ * if the machine powers off during reset, may have chance of losing data, TODO fix it in the later release **/
 public Memstore* reset_memstore(Memstore *memstore, int flushed_size){
 		logg(INFO, "The memstore resetting process for tablet %d has begin.", memstore->tablet_id);
         int tablet_id = memstore->tablet_id;
@@ -100,7 +104,7 @@ public Memstore* reset_memstore(Memstore *memstore, int flushed_size){
         //append the new added_item_list to the memstore
         Item* item = NULL;
         while((item = list_next(new_added_item_list)) != NULL){
-                append_memstore(memstore, item);
+        	append_memstore(memstore, item);
         }
         list_rewind(new_added_item_list);
         list_destory(new_added_item_list, only_free_struct);
@@ -113,7 +117,7 @@ public ResultSet* query_memstore_by_row_key(Memstore* memstore, char* row_key){
 		return set;
 }
 
-public ResultSet* query_memstore_by_timestamp(Memstore* memstore, int begin_timestamp, int end_timestamp){
+public ResultSet* query_memstore_by_timestamp(Memstore* memstore, long long begin_timestamp, long long end_timestamp){
         List* itemList = list_create();
         if(match_by_timestamps(begin_timestamp, end_timestamp, memstore->begin_timestamp, memstore->end_timestamp)){
 			int i=0;
