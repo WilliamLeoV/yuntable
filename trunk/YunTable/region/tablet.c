@@ -193,6 +193,7 @@ public char* get_metadata_tablet(Tablet *tablet){
 			YFile *yfile = list_get(tablet->yfileList, i);
 			char* yfile_meta = get_yfile_metadata(yfile);
 			buf_cat(buf, yfile_meta, strlen(yfile_meta));
+			buf_cat(buf, LINE_SEPARATOR_STRING, strlen(LINE_SEPARATOR_STRING));
 			free(yfile_meta);
 		}
 		char* metadata = m_get_buf_string(buf);

@@ -45,7 +45,8 @@ public Memstore* init_memstore(int id){
 }
 
 public boolean memstore_full(Memstore* memstore){
-        //if(memstore->used_size > 0) return true; a trigge that init flush every time
+	 	//a trigger that init flush every time
+        //if(memstore->used_size > 0) return true;
         //if the used size about 98% allocated size, that means the memstore is full
 		if(memstore->used_size > memstore->max_allocated_size * FLUSH_THERSHOLD_PERCENT){
         	logg(INFO, "The memstore for tablet %d is almost full.", memstore->tablet_id);
