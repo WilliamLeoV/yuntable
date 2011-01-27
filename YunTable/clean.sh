@@ -5,8 +5,6 @@ rm yuncli
 rm startMaster
 rm startRegion
 rm yfileTest
-rm testMaster
-rm testRegion
 rm confTest
 rm itemTest
 rm listTest
