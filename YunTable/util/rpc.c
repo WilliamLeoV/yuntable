@@ -27,8 +27,10 @@ struct _RPCResponse{
 
 /** If the status code is not qualified, the method will return **/
 public char* get_error_message(int status_code){
-		if(status_code ==  CONN_FAIL){
+		if(status_code == CONN_FAIL){
 			return CONN_FAIL_MSG;
+		}else if(status_code == REMOTE_FAIL){
+			return REMOTE_FAIL_MSG;
 		}else if(status_code == ERROR_NO_CMD){
 			return ERROR_NO_CMD_MSG;
 		}else if(status_code == ERROR_WRONG_CMD){
@@ -271,7 +273,12 @@ public RPCResponse* connect_conn(char* conn, RPCRequest* rpcRequest){
 			Buf* rpc_request_buf = rpc_request_to_byte(rpcRequest);
 			write(sockfd, get_buf_data(rpc_request_buf), get_buf_index(rpc_request_buf));
 			n = read(sockfd, buf, CONN_BUF_SIZE);
-			rpcResponse = byte_to_rpc_response(buf);
+			//If n == 0, measn the remote node have encounter some bad problems
+			if(n == 0){
+				rpcResponse = create_rpc_response(REMOTE_FAIL, 0, NULL);
+			}else{
+				rpcResponse = byte_to_rpc_response(buf);
+			}
 			destory_buf(rpc_request_buf);
         }
         close(sockfd);

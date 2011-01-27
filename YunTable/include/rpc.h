@@ -7,13 +7,15 @@
 /** Status Code Part, which show the status of RPC Call **/
 #define SUCCESS 0 //The cmd has been processed successfully
 #define CONN_FAIL 1 //Has failed to connect to remote target node
-#define ERROR_NO_CMD 2 //The RPC Request has not included any cmd
-#define ERROR_WRONG_CMD 3 //The RPC Request can not handle this kind of cmd
-#define ERROR_NO_PARAM 4 //The RPC Request has not included needed parameter
-#define ERROR_TABLET_NOT_EXIST 5 //The Region Node don't have the target tablet
+#define REMOTE_FAIL 2 //The remote target node has encounter some execution failure situation
+#define ERROR_NO_CMD 3 //The RPC Request has not included any cmd
+#define ERROR_WRONG_CMD 4 //The RPC Request can not handle this kind of cmd
+#define ERROR_NO_PARAM 5 //The RPC Request has not included needed parameter
+#define ERROR_TABLET_NOT_EXIST 6 //The Region Node don't have the target tablet
 //#define IN_PROGRESS //Which means the cmd is still processing, may has use in the future
 
 #define CONN_FAIL_MSG "connection Failed"
+#define REMOTE_FAIL_MSG "the remote node have some troubles"
 #define ERROR_NO_CMD_MSG "no command included in the request"
 #define ERROR_WRONG_CMD_MSG "this request can not be handled by the remote node"
 #define ERROR_NO_PARAM_MSG "not enough parameters included in the request"
