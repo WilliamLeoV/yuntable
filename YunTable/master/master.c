@@ -50,8 +50,9 @@ private int cmp_region_info_void(void const* regionInfo1_void, void const* regio
 		RegionInfo const* regionInfo2 = (RegionInfo*)(*(long*)regionInfo2_void);
 		if(regionInfo1->connecting == regionInfo2->connecting){
 			return regionInfo1->avail_space > regionInfo2->avail_space;
-		}else
+		}else{
 			return regionInfo1->connecting > regionInfo2->connecting;
+		}
 }
 
 /** If the method can not get correct tablet used size, the system will return INDEFINITE(-1) **/
@@ -108,7 +109,7 @@ private TabletInfo* create_new_tablet(RegionInfo *regionInfo, char* table_name){
 		RPCResponse* rpcResponse = connect_conn(regionInfo->conn, rpcRequest);
 		int status_code = get_status_code(rpcResponse);
 		if(status_code == SUCCESS && stob(get_result(rpcResponse)) == true){
-			int begin_timestamp = time(0);
+			long long begin_timestamp = get_current_time_stamp();
 			tabletInfo = create_tablet_info(regionInfo, begin_timestamp, 0);
 		}else{
 			logg(ISSUE, "The tablet for table %s can not be created at region %s.", table_name, regionInfo->conn);
@@ -225,7 +226,7 @@ private boolean handle_infected_tablet(TabletInfo* infectedTabletInfo, ReplicaQu
 		TabletInfo* firstTabletInfo = create_new_tablet(firstRegionInfo, tableInfo->table_name);
 		//if region info is connecting, which means it is full, will just assign new tablet to serving
 		if(infectedTabletInfo->regionInfo->connecting == true){
-			infectedTabletInfo->end_timestamp = time(0);
+			infectedTabletInfo->end_timestamp = get_current_time_stamp();
 			//needs to new region that worksing
 			infectedTabletInfo->regionInfo->serving = false;
 			list_append(replicaQueue->tabletInfoList, firstTabletInfo);
@@ -235,7 +236,7 @@ private boolean handle_infected_tablet(TabletInfo* infectedTabletInfo, ReplicaQu
 			list_replace(replicaQueue->tabletInfoList, infectedTabletInfo, firstTabletInfo);
 			//if the infectedTabletInfo is serving now, will add one more
 			if(infectedTabletInfo->end_timestamp == 0){
-				infectedTabletInfo->end_timestamp = time(0);
+				infectedTabletInfo->end_timestamp = get_current_time_stamp();
 				RegionInfo* secondRegionInfo = list_get(regionInfoList, 1);
 				if(region_has_problem(secondRegionInfo)) return false;
 				TabletInfo* secondTabletInfo = create_new_tablet(firstRegionInfo, tableInfo->table_name);
