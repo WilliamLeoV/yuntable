@@ -42,7 +42,7 @@ public Key* m_load_key(FILE *fp){
 		return key;
 }
 
-private Key* create_key(char *row_key, char *column_name){
+private Key* create_key(char *row_key, char *column_name,long long timestamp){
 		if(row_key == NULL){
 			logg(ISSUE, "Insert Null Row key!!!!");
 		}
@@ -56,16 +56,20 @@ private Key* create_key(char *row_key, char *column_name){
 			key->column_name_len = 0;
 			key->column_name = NULL;
 		}
-		key->timestamp = get_current_time_stamp();
+		key->timestamp = timestamp;
 		return key;
 }
 
+private Key* create_key_with_current_timestamp(char *row_key, char *column_name){
+		return create_key(row_key, column_name, get_current_time_stamp());
+}
+
 public Key* m_clone_key(Key* key){
-		return create_key(key->row_key, key->column_name);
+		return create_key(key->row_key, key->column_name, key->timestamp);
 }
 
 public Item* m_create_item(char *row_key, char *column_name, char *value){
-		Key *key = create_key(row_key, column_name);
+		Key *key = create_key_with_current_timestamp(row_key, column_name);
 		//init a new item base on the input
 		Item *item = malloc2(sizeof(Item));
 		item->key = key;
@@ -111,8 +115,11 @@ public long long get_timestamp(Item *item){
 /* find the two sets timestamp has some shared space */
 public boolean match_by_timestamps(long long src_begin_timestamp, long long src_end_timestamp,
                 long long dest_begin_timestamp, long long dest_end_timestamp){
-        if(src_begin_timestamp > dest_end_timestamp || src_end_timestamp < dest_begin_timestamp) return false;
-        else return true;
+        if(src_begin_timestamp > dest_end_timestamp || src_end_timestamp < dest_begin_timestamp){
+        	return false;
+        }else{
+        	return true;
+        }
 }
 
 public boolean between_timestamps(long long timestamp, long long begin_timestamp, long long end_timestamp){
@@ -202,7 +209,7 @@ public ResultSet* byte_to_result_set(byte* bytes){
         return resultSet;
 }
 
-private void free_key(Key *key){
+public void free_key(Key *key){
 		frees(3, key->row_key, key->column_name, key);
 }
 
@@ -372,6 +379,7 @@ public ResultSet* m_combine_result_set(ResultSet* leftSet, ResultSet* rightSet){
         //init new ResultSetArray
         int total_size = leftSet->size + rightSet->size;
         Item** items = malloc2(sizeof(Item *) * total_size);
+        memset(items, 0, sizeof(Item *) * total_size);
         int left = 0; //The Pointer for left ResultSet
         int right = 0; //The Pointer for right ResultSet
         int index = 0; //The Pointer of the new ResultSet
