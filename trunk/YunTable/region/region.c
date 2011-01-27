@@ -20,16 +20,15 @@
 
 /** This struct will also be used at cli side**/
 typedef struct _Region{
-	char* conf_path;
-	int port;
-	int max_size; /** The UNIT is MB, the max size of disk usage has been defined in the conf file**/
-	int used_size; /** The UNIT is MB, the current disk usage **/
-	List* tabletList; /**only used in region server**/
-	int flush_check_interval;
-	int hotness_value; /** Defined the memory duration of data block **/
-	Wal* wal;
-	long long incr_item_id; /** the id for putted item in the memstore and wal **/
-
+		char* conf_path;
+		int port;
+		int max_size; /** The UNIT is MB, the max size of disk usage has been defined in the conf file**/
+		int used_size; /** The UNIT is MB, the current disk usage **/
+		List* tabletList; /**only used in region server**/
+		int flush_check_interval;
+		int hotness_value; /** Defined the memory duration of data block **/
+		Wal* wal;
+		long long incr_item_id; /** the id for putted item in the memstore and wal **/
 }Region;
 
 /**
@@ -51,7 +50,10 @@ public long long get_incr_item_id(){
 private Tablet* get_tablet(List* tabletList, char *table_name){
 		Tablet *found = NULL, *tablet = NULL;
 		while((tablet = list_next(tabletList)) != NULL){
-			if(match_tablet(tablet, table_name)) found = tablet;
+			if(match_tablet(tablet, table_name)){
+				 found = tablet;
+				 break;
+			}
 		}
 		list_rewind(tabletList);
 		return found;
@@ -69,32 +71,38 @@ private boolean tablet_exist(List* tabletList, char *table_name){
 private Tablet* get_tablet_by_id(List* tabletList, int tablet_id){
 		Tablet *tablet = NULL, *temp = NULL;
 		while((temp = list_next(tabletList)) != NULL){
-			if(get_tablet_id(temp) == tablet_id) tablet = temp;
+			if(get_tablet_id(temp) == tablet_id){
+				 tablet = temp;
+			}
 		}
 		list_rewind(tabletList);
 		return tablet;
 }
 
+/** If the last flushed id can not be found at conf file, the method will return 0 **/
 private long long get_last_flushed_id_from_conf(char* conf_path, char* tablet_folder){
 		long long last_flushed_id = 0;
 		char* key = m_cats(3, tablet_folder, MID_SEPARATOR_STRING, CONF_LAST_FLUSHED_ID_KEY);
 		char* value = m_get_value_by_key(conf_path, key);
-		if(value != NULL) last_flushed_id = btoll(value);
-
+		if(value != NULL){
+			 //Since it is string format, it will use atoll
+			 last_flushed_id = atoll(value);
+		}
 		frees(2, key, value);
 		return last_flushed_id;
 }
 
 private void flush_tablets_info(char* file_path, List* tabletList){
-		logg(INFO, "Flusing the all tablets Info to file %s.", file_path);
-		Tablet* tablet = NULL;
-		while((tablet = list_next(tabletList)) != NULL){
+		logg(INFO, "Flushing the all tablets Info to file %s.", file_path);
+		int i=0;
+		int tablet_size = list_size(tabletList);
+		for(i=0; i<tablet_size; i++){
+			Tablet* tablet = list_get(tabletList, i);
 			char* key = m_cats(3, get_tablet_folder(tablet), MID_SEPARATOR_STRING ,CONF_LAST_FLUSHED_ID_KEY);
 			char* value = m_lltos(get_last_flushed_id(tablet));
 			flush_key_value(file_path, key, value);
 			frees(2, key, value);
 		}
-		list_rewind(tabletList);
 }
 
 private Region* init_region_struct(char *conf_path){
@@ -125,7 +133,8 @@ private Region* init_region_struct(char *conf_path){
 		return region;
 }
 
-/** the method will reload wal log to tablet, and will return the max item id in wal log **/
+/**
+ * The method will reload wal log to tablet, and will return the max item id in wal log **/
 private int reload_wal_to_tablet(Wal* wal, List* tabletList){
 		logg(INFO, "Reloading the Wal Items to tablet.");
 		List* newWalItems = list_create();
@@ -166,10 +175,12 @@ public void load_local_region(char *conf_path){
  				if(cmp(dp->d_name, TABLET_FOLDER_PREFIX, strlen(TABLET_FOLDER_PREFIX))){
 					Tablet *tablet = load_tablet(dp->d_name);
 					list_append(regionInst->tabletList, tablet);
-					long last_flushed_id =  get_last_flushed_id_from_conf(regionInst->conf_path, dp->d_name);
+					long last_flushed_id = get_last_flushed_id_from_conf(regionInst->conf_path, dp->d_name);
 					set_last_flushed_id(tablet, last_flushed_id);
 					if(last_flushed_id > regionInst->incr_item_id)
 						regionInst->incr_item_id = last_flushed_id;
+					//Set the last flush id as the tablet's max item id
+					set_max_item_id(tablet, last_flushed_id);
 				}
 			}
 		}
@@ -177,7 +188,9 @@ public void load_local_region(char *conf_path){
 		closedir(regionFolder);
 		if(need_to_reload_wal(regionInst->wal)){
 			int max_item_id = reload_wal_to_tablet(regionInst->wal, regionInst->tabletList);
-			regionInst->incr_item_id = max_item_id;
+			if(max_item_id > regionInst->incr_item_id){
+				regionInst->incr_item_id = max_item_id;
+			}
 		}
 }
 
@@ -239,13 +252,13 @@ public char* get_metadata_region(char* table_name){
 void* sync_job(void* syncJob_void){
 		SyncJob* syncJob = (SyncJob*)syncJob_void;
 		Tablet* tablet = get_tablet(regionInst->tabletList, syncJob->table_name);
-		int diff = syncJob->end_timestamp - syncJob->begin_timestamp;
+		long long diff = syncJob->end_timestamp - syncJob->begin_timestamp;
 		//TODO may need some interval for avoiding some contention
 		//will retrieve certain amount of items base on time(default is one hour), and send the region node
 		int i=0, size=diff/TIME_STAMP_DIV + 1;
 		for(i=0; i<size; i++){
-			int begin_timestamp = syncJob->begin_timestamp + i * TIME_STAMP_DIV;
-			int end_timestamp = syncJob->begin_timestamp + (i+1)* TIME_STAMP_DIV;
+			long long begin_timestamp = syncJob->begin_timestamp + i * TIME_STAMP_DIV;
+			long long end_timestamp = syncJob->begin_timestamp + (i+1)* TIME_STAMP_DIV;
 			if(end_timestamp > syncJob->end_timestamp) end_timestamp = syncJob->end_timestamp;
 			ResultSet* resultSet = query_tablet_by_timestamp(tablet, begin_timestamp, end_timestamp);
 			if(resultSet->size > 0){
@@ -260,7 +273,7 @@ void* sync_job(void* syncJob_void){
 			    		logg(ISSUE, "The sync job to region node %s has met some problems.", syncJob->target_conn);
 			    	}
 				}else{
-					logg(ISSUE, "The target region node %s has problem during the syn job.", syncJob->target_conn);
+					logg(ISSUE, "The target r tablet = temp;egion node %s has problem during the syn job.", syncJob->target_conn);
 					//TODO handle the failure situation
 				}
 				destory_rpc_request(rpcRequest);
@@ -289,12 +302,13 @@ public boolean start_sync_region(char* target_conn, char* table_name, long long 
 
 private void check_and_flush_region(void){
 		int used_size = 0;
-		Tablet *tablet = NULL;
-		while((tablet = list_next(regionInst->tabletList)) != NULL){
+		int tablet_size = list_size(regionInst->tabletList);
+		int i=0;
+		for(i=0; i<tablet_size; i++){
+			Tablet* tablet = list_get(regionInst->tabletList, i);
 			used_size += get_used_size_tablet(tablet);
 			refresh_tablet(tablet, regionInst->hotness_value);
 		}
-		list_rewind(regionInst->tabletList);
 		regionInst->used_size = used_size;
 		flush_tablets_info(regionInst->conf_path, regionInst->tabletList);
 }
