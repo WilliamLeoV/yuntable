@@ -240,7 +240,7 @@ private char* batch_put_data_to_table(CliCache* cliCache, TableInfo* tableInfo, 
 				printf("The Connection to Region Node %s have encountered some problem:%s.\n",
 						tabletInfo->regionInfo->conn, get_error_message(status_code));
 				msg = ERR_MSG_PUT;
-				if(check_problem_region(tabletInfo->regionInfo->conn) == true){
+				if(status_code == CONN_FAIL && check_problem_region(tabletInfo->regionInfo->conn) == true){
 					printf("The Region Node %s has some problem, and is fixing now.\n", tabletInfo->regionInfo->conn);
 				}
 			}
@@ -324,7 +324,8 @@ private ResultSet* query_table(CliCache *cliCache, TableInfo* tableInfo, char *r
 				}else{
 					printf("The Connection to Region Node %s have encountered some problems:%s.\n",
 							tabletInfo->regionInfo->conn, get_error_message(status_code));
-					if(check_problem_region(tabletInfo->regionInfo->conn) == true){
+					//Currently only connection failed situation will report to the master
+					if(status_code == CONN_FAIL && check_problem_region(tabletInfo->regionInfo->conn) == true){
 						printf("The Region Node %s has some problem, and is fixing now.\n", tabletInfo->regionInfo->conn);
 					}
 				}
@@ -518,11 +519,14 @@ public void help(void){
 }
 
 public char* process(char *cmd){
-        if(cmd == NULL && strlen(cmd) < 3)
-            return ERR_MSG_NULL_STRING;
+        if(cmd == NULL && strlen(cmd) < 3){
+        	return ERR_MSG_NULL_STRING;
+        }
         char *msg = NULL;
         Tokens* space_tokens = init_tokens(cmd, ' ');
-        if(space_tokens->size < 1) return ERR_MSG_NULL_STRING;
+        if(space_tokens->size < 1){
+        	return ERR_MSG_NULL_STRING;
+        }
         char* action = m_cpy(space_tokens->tokens[0]);
         if(match(action, ADD_KEY)){
 			msg = add(space_tokens);
