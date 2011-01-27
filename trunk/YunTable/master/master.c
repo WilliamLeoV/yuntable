@@ -473,7 +473,7 @@ public void start_server_master(){
 		logg(INFO, "The daemon for master side flushing has started.");
 		logg(INFO, "The Master server is starting at %d and will handle request.", masterInst->port);
 		logg(INFO, "The Master Conf File is at %s.", masterInst->conf_path);
-		logg(INFO, "The Master Duplication Number is %d.", masterInst->flush_check_interval);
+		logg(INFO, "The Master Duplication Number is %d.", masterInst->duplicate_num);
 		logg(INFO, "The Master Flushing Checking Interval is %d.", masterInst->flush_check_interval);
 		//Step 2. Startup Master Server
 		startup(masterInst->port, handler_master_request);
