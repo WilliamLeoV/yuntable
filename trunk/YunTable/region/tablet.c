@@ -31,7 +31,6 @@ struct _Tablet{
 #define TABLE_EXT ".table"
 #define YFILE_EXT ".yfile"
 
-
 private int extract_tablet_id(char *table_folder){
 		char* temp = move_pointer(table_folder, sizeof(TABLET_FOLDER_PREFIX)-1);
 		return atoi(temp);
@@ -41,12 +40,16 @@ public short get_tablet_id(Tablet* tablet){
 		return tablet->id;
 }
 
-public void set_last_flushed_id(Tablet* tablet, long last_flushed_id){
+public void set_last_flushed_id(Tablet* tablet, long long last_flushed_id){
 		tablet->last_flushed_id = last_flushed_id;
 }
 
 public long get_last_flushed_id(Tablet* tablet){
 		return tablet->last_flushed_id;
+}
+
+public void set_max_item_id(Tablet* tablet, long long max_item_id){
+		tablet->max_item_id = max_item_id;
 }
 
 public char* get_tablet_folder(Tablet* tablet){
@@ -127,7 +130,7 @@ private ResultSet* query_yfiles_by_row_key(List* yfileList, char *row_key){
 		return resultSet;
 }
 
-private ResultSet* query_yfiles_by_timestamp(List* yfileList, int begin_timestamp, int end_timestamp){
+private ResultSet* query_yfiles_by_timestamp(List* yfileList, long long begin_timestamp, long long end_timestamp){
 		ResultSet* resultSet = m_create_result_set(0, NULL);
 		int i=0, size=list_size(yfileList);
 		for(i=0; i<size; i++){
@@ -156,7 +159,7 @@ public ResultSet* query_tablet_row_key(Tablet *tablet, char* row_key){
 		return combinedSet;
 }
 
-public  ResultSet* query_tablet_by_timestamp(Tablet *tablet, int begin_timestamp, int end_timestamp){
+public  ResultSet* query_tablet_by_timestamp(Tablet *tablet, long long begin_timestamp, long long end_timestamp){
 		//query memstore,
 		ResultSet* memstoreSet = query_memstore_by_timestamp(tablet->memstore, begin_timestamp, end_timestamp);
 		//query yfile
@@ -172,7 +175,7 @@ public ResultSet* query_tablet_all(Tablet *tablet){
 		 //get all items from memstore
 		 ResultSet* memstoreSet = get_all_items_memstore(tablet->memstore);
 		 //get all items from yfile
-		 ResultSet* yfileSet = query_yfiles_by_timestamp(tablet->yfileList, 0, time(0));
+		 ResultSet* yfileSet = query_yfiles_by_timestamp(tablet->yfileList, 0, get_current_time_stamp());
 
 		 ResultSet* combinedSet = m_combine_result_set(memstoreSet, yfileSet);
 
@@ -189,7 +192,7 @@ public char* get_metadata_tablet(Tablet *tablet){
 		for(i=0; i<size; i++){
 			YFile *yfile = list_get(tablet->yfileList, i);
 			char* yfile_meta = get_yfile_metadata(yfile);
-			buf_cat(buf, memstore_meta, strlen(memstore_meta));
+			buf_cat(buf, yfile_meta, strlen(yfile_meta));
 			free(yfile_meta);
 		}
 		char* metadata = m_get_buf_string(buf);
