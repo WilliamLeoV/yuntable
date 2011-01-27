@@ -123,8 +123,11 @@ private Trailer* load_trailer(FILE *fp){
 //will increase the size of data index to 1.5 * target_size
 private IndexBlock* resize_indexs(IndexBlock *indexBlock, int target_size){
 		indexBlock->current_index_allocated_size = target_size;
-		if(indexBlock->indexs == NULL) indexBlock->indexs = malloc2(sizeof(Index*) * target_size);
-		else indexBlock->indexs = realloc2(indexBlock->indexs, sizeof(Index*) * target_size);
+		if(indexBlock->indexs == NULL){
+			 indexBlock->indexs = malloc2(sizeof(Index*) * target_size);
+		}else{
+			 indexBlock->indexs = realloc2(indexBlock->indexs, sizeof(Index*) * target_size);
+		}
 		return indexBlock;
 }
 
@@ -164,9 +167,14 @@ private Index* load_index(FILE *fp){
 		Index *index = malloc2(sizeof(index));
 		fread(&index->offset, sizeof(index->offset), 1, fp);
 		fread(&index->item_size, sizeof(index->item_size), 1, fp);
-		index->lastKey = m_load_key(fp);
+		//The tmp Key will be ruined for unknown reason by reading the end timestamp value
+		//So copy the key to avoid the weird bug, but will be crushed if try to free the tmp key
+		Key* tmpKey = m_load_key(fp);
+		Key* key = m_clone_key(tmpKey);
+		//free_key(tmpKey);
 		fread(&index->begin_timestamp, sizeof(index->begin_timestamp), 1, fp);
 		fread(&index->end_timestamp, sizeof(index->end_timestamp), 1, fp);
+		index->lastKey = key;
 		return index;
 }
 
@@ -178,7 +186,9 @@ private IndexBlock* load_index_block(int index_block_offset, FILE *fp){
 		indexBlock->indexs = NULL;
 		indexBlock = resize_indexs(indexBlock, indexBlock->index_count);
 		int i=0;
-		for(i=0; i<indexBlock->index_count; i++) indexBlock->indexs[i] = load_index(fp);
+		for(i=0; i<indexBlock->index_count; i++){
+			indexBlock->indexs[i] = load_index(fp);
+		}
 		return indexBlock;
 }
 
@@ -189,9 +199,10 @@ private void flush_index_block(IndexBlock *indexBlock, int begin_offset, FILE* f
 		fwrite(&indexBlock->index_count, sizeof(indexBlock->index_count), 1, fp);
 		//flush indexs
 		int i=0;
-		for(i=0; i<indexBlock->index_count; i++)flush_index(indexBlock->indexs[i], fp);
+		for(i=0; i<indexBlock->index_count; i++){
+			flush_index(indexBlock->indexs[i], fp);
+		}
 }
-
 
 private void flush_item_list(IndexBlock *indexBlock, size_t begin_offset, ResultSet* resultSet, FILE* fp){
 		int i=0, size = 0;
@@ -199,8 +210,8 @@ private void flush_item_list(IndexBlock *indexBlock, size_t begin_offset, Result
 		fseek(fp, offset, SEEK_SET);
 		boolean newBlock = true;
 		Key *lastKey = NULL;
-		int beign_timestamp = 0;
-		int end_timestamp = 0;
+		long long beign_timestamp = 0;
+		long long end_timestamp = 0;
 		for(i=0;i<resultSet->size;i++){
 			Item* item = resultSet->items[i];
 			if(newBlock == true){
@@ -211,7 +222,7 @@ private void flush_item_list(IndexBlock *indexBlock, size_t begin_offset, Result
 			}
 			flush_item(item, fp);
 			//change the timestamp;
-			int timestamp = get_timestamp(item);
+			long long timestamp = get_timestamp(item);
 			if(beign_timestamp == 0 || timestamp < beign_timestamp) beign_timestamp = timestamp;
 			if(end_timestamp == 0 || timestamp > end_timestamp) end_timestamp = timestamp;
 
@@ -229,8 +240,9 @@ private void flush_item_list(IndexBlock *indexBlock, size_t begin_offset, Result
 }
 
 /* if the begin is true, the method will return the least timestamp of the index block, if false, will get the last*/
-private int search_timestamp(IndexBlock* indexBlock, boolean begin){
-		int i=0, timestamp = 0;
+private long long search_timestamp(IndexBlock* indexBlock, boolean begin){
+		int i=0;
+		long long timestamp = 0;
 		for(i=0; i<indexBlock->index_count; i++){
 			Index* index = indexBlock->indexs[i];
 			if(timestamp == 0) timestamp = index->begin_timestamp;
@@ -241,7 +253,7 @@ private int search_timestamp(IndexBlock* indexBlock, boolean begin){
 }
 
 /**
- * creating a new yfile base on the input and the file is immutable after this insertion
+ * creating a new yfile base on the input and the file is immutable after this insertion.
  **/
 public YFile* create_new_yfile(char* file_path, ResultSet* resultSet, char* table_name){
 		logg(INFO, "Creating a new yfile %s.", file_path);
@@ -267,6 +279,10 @@ public YFile* create_new_yfile(char* file_path, ResultSet* resultSet, char* tabl
 				begin_timestamp, end_timestamp, trailer_offset);
 		flush_trailer(trailer, fp);
 		yfile->trailer = trailer;
+		size_t index_count = yfile->indexBlock->index_count;
+		yfile->dataBlockCache = malloc2(sizeof(DataBlock*) * index_count);
+		//set the dataBlockCache init value as NULL
+		memset(yfile->dataBlockCache, 0, sizeof(DataBlock*) * index_count);
 		fclose(fp);
 		logg(INFO, "The new yfile %s has been created.", file_path);
 		return yfile;
@@ -293,7 +309,9 @@ public YFile* loading_yfile(char* file_path){
 		yfile->indexBlock = load_index_block(index_block_offset, fp);
 		size_t index_count = yfile->indexBlock->index_count;
 		yfile->dataBlockCache = malloc2(sizeof(DataBlock*) * index_count);
-
+		//set the dataBlockCache init value as NULL
+		memset(yfile->dataBlockCache, 0, sizeof(DataBlock*) * index_count);
+		fclose(fp);
 		logg(INFO, "The loading of yfile %s is complete.", file_path);
 		return yfile;
 }
@@ -311,11 +329,11 @@ private DataBlock* load_data_block(YFile *yfile, int index_pos, FILE *fp){
 			DataBlock* dataBlock = malloc2(sizeof(DataBlock));
 			dataBlock->item_size = index->item_size;
 			dataBlock->items = malloc2(sizeof(Item *) * dataBlock->item_size);
-			int offset = index->offset, i=0;
-			fseek(fp, offset, SEEK_SET);
+			fseek(fp, index->offset, SEEK_SET);
 			//load the magic string
 			fread(dataBlock->magic, sizeof(dataBlock->magic), 1, fp);
 			//load the items
+			int i=0;
 			for(i=0; i<dataBlock->item_size; i++){
 				dataBlock->items[i] = m_load_item(fp);
 			}
@@ -346,7 +364,7 @@ private boolean bloom_filter_key(YFile* yfile, char* row_key){
 		return between_keys(yfile->trailer->firstKey, yfile->trailer->lastKey, row_key);
 }
 
-private boolean bloom_filter_timestamp(YFile* yfile, int begin_timestamp, int end_timestamp){
+private boolean bloom_filter_timestamp(YFile* yfile, long long begin_timestamp, long long end_timestamp){
 		return match_by_timestamps(begin_timestamp, end_timestamp, yfile->trailer->begin_timestamp, yfile->trailer->end_timestamp);
 }
 
@@ -358,7 +376,8 @@ public ResultSet* query_yfile_by_row_key(YFile* yfile, char* row_key){
 		//step 0. using the bloom filter
 		if(bloom_filter_key(yfile, row_key)){
 			//step 1. found the data block has the target row_keys
-			int founded_index = bsearch_indexs(0, yfile->indexBlock->index_count-1, yfile->indexBlock->indexs, row_key, yfile->trailer->firstKey);
+			int founded_index = bsearch_indexs(0, yfile->indexBlock->index_count-1,
+					yfile->indexBlock->indexs, row_key, yfile->trailer->firstKey);
 			FILE *fp = fopen(yfile->file_path, "r+");
 			DataBlock* dataBlock = load_data_block(yfile,founded_index, fp);
 			fclose(fp);
@@ -368,7 +387,7 @@ public ResultSet* query_yfile_by_row_key(YFile* yfile, char* row_key){
 		return	resultSet;
 }
 
-public ResultSet* query_yfile_by_timestamp(YFile* yfile, int begin_timestamp, int end_timestamp){
+public ResultSet* query_yfile_by_timestamp(YFile* yfile, long long begin_timestamp, long long end_timestamp){
 		ResultSet *resultSet = m_create_result_set(0, NULL);
 		//step 0. using the bloom filter
 		if(bloom_filter_timestamp(yfile, begin_timestamp, end_timestamp)){
@@ -386,6 +405,7 @@ public ResultSet* query_yfile_by_timestamp(YFile* yfile, int begin_timestamp, in
 					resultSet = combinedSet;
 				}
 			}
+			fclose(fp);
 		}
 		return resultSet;
 }
@@ -397,8 +417,9 @@ public void refresh_yfile_data_block_cache(YFile* yfile, int hotness_value){
 		for(i=0; i<size; i++){
 			DataBlock* dataBlock = yfile->dataBlockCache[i];
 			if(dataBlock != NULL){
-				if(dataBlock->last_visited_timestamp + hotness_value < current_timestamp){
+				if(dataBlock->last_visited_timestamp + hotness_value * Millis < current_timestamp){
 					free_data_block(dataBlock);
+					dataBlock = NULL;
 				}
 			}
 		}
@@ -414,7 +435,7 @@ public char* get_yfile_metadata(YFile* yfile){
 		char* line4 = mallocs(LINE_BUF_SIZE);
 		sprintf(line4, "The Begin Timestamp: %lld.\n", yfile->trailer->begin_timestamp);
 		char* line5 = mallocs(LINE_BUF_SIZE);
-		sprintf(line5, "The Begin Timestamp: %lld.\n", yfile->trailer->begin_timestamp);
+		sprintf(line5, "The End Timestamp: %lld.\n", yfile->trailer->end_timestamp);
 		char* metadata = m_cats(5, line1, line2, line3, line4, line5);
 		frees(5, line1, line2, line3, line4, line5);
 		return metadata;
