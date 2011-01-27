@@ -10,9 +10,11 @@ typedef struct _Tablet Tablet;
 
 public short get_tablet_id(Tablet* tablet);
 
-public void set_last_flushed_id(Tablet* tablet, long last_flushed_id);
+public void set_last_flushed_id(Tablet* tablet, long long last_flushed_id);
 
 public long get_last_flushed_id(Tablet* tablet);
+
+public void set_max_item_id(Tablet* tablet, long long max_item_id);
 
 public char* get_tablet_folder(Tablet* tablet);
 
@@ -31,7 +33,7 @@ public void put_tablet(Tablet *tablet, long incr_item_id, Item *item);
 
 public ResultSet* query_tablet_row_key(Tablet *tablet, char* row_key);
 
-public  ResultSet* query_tablet_by_timestamp(Tablet *tablet, int begin_timestamp, int end_timestamp);
+public  ResultSet* query_tablet_by_timestamp(Tablet *tablet, long long begin_timestamp, long long end_timestamp);
 
 public ResultSet* query_tablet_all(Tablet *tablet);
 
