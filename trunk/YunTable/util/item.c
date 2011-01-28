@@ -58,16 +58,17 @@ public Key* m_load_key(FILE *fp){
 		return key;
 }
 
-private Key* create_key(char *row_key, char *column_name,long long timestamp){
+private Key* create_key(const char *row_key, const char *column_name, long long timestamp)
+{
 		if(row_key == NULL){
 			logg(ISSUE, "Insert Null Row key!!!!");
 		}
 		Key *key = malloc2(sizeof(Key));
 		key->row_key_len = strlen(row_key);
-		key->row_key = m_cpy(row_key);
+		key->row_key = strdup(row_key);
 		if(column_name != NULL){
 			key->column_name_len = strlen(column_name);
-			key->column_name = m_cpy(column_name);
+			key->column_name = strdup(column_name);
 		}else{
 			key->column_name_len = 0;
 			key->column_name = NULL;
@@ -76,7 +77,7 @@ private Key* create_key(char *row_key, char *column_name,long long timestamp){
 		return key;
 }
 
-private Key* create_key_with_current_timestamp(char *row_key, char *column_name){
+private Key* create_key_with_current_timestamp(const char *row_key, const char *column_name){
 		return create_key(row_key, column_name, get_current_time_stamp());
 }
 
@@ -84,14 +85,15 @@ public Key* m_clone_key(Key* key){
 		return create_key(key->row_key, key->column_name, key->timestamp);
 }
 
-public Item* m_create_item(char *row_key, char *column_name, char *value){
+public Item* m_create_item(const char *row_key, const char *column_name, const char* value)
+{
 		Key *key = create_key_with_current_timestamp(row_key, column_name);
 		//init a new item base on the input
 		Item *item = malloc2(sizeof(Item));
 		item->key = key;
 		if(value != NULL){
 			item->val_len = strlen(value);
-			item->value = m_cpy(value);
+			item->value = strdup(value);
 		}else{
 			item->val_len = 0;
 			item->value = NULL;
@@ -214,7 +216,7 @@ public ResultSet* byte_to_result_set(byte* bytes){
         Buf* buf = create_buf(0, bytes);
         ResultSet *resultSet = malloc2(sizeof(ResultSet));
         char* magic_string = buf_load(buf, sizeof(resultSet->magic));
-        cpy(resultSet->magic, magic_string);
+        strcpy(resultSet->magic, magic_string);
         free2(magic_string);
         resultSet->size = buf_load_int(buf);
         resultSet->items = malloc2(sizeof(Item *) * resultSet->size);
@@ -365,7 +367,7 @@ public Key* get_first_key(ResultSet* resultSet){
 /** input items will be inserted into a new result set **/
 public ResultSet *m_create_result_set(int item_size, Item **items){
         ResultSet *resultSet = malloc2(sizeof(ResultSet));
-        cpy(resultSet->magic, RESULT_SET_MAGIC);
+        strcpy(resultSet->magic, RESULT_SET_MAGIC);
         resultSet->size = item_size;
         resultSet->items = items;
         return resultSet;
@@ -538,7 +540,7 @@ void testcase_for_cmp_key_with_row_key(void){
         char *test3 = "abe";
 
         Key *key = malloc2(sizeof(Key));
-        key->row_key = m_cpy(test1);
+        key->row_key = strdup(test1);
         assert(cmp_key_with_row_key(key, test1)==0);
         assert(cmp_key_with_row_key(key, test2)!=0);
         assert(cmp_key_with_row_key(key, test3)!=0);

@@ -19,7 +19,7 @@
 
 /**
  * Base on Redis implementation, create a new Layer of memory allocation,
- * Which has three features: 
+ * Which has three features:
  * 		1. Will abort the system if oom happens;
  * 		2. Has frees method, which can free a bunch of pointers
  * **/

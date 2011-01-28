@@ -85,7 +85,7 @@ public List* generate_charactor_params(int size, ...){
 			//this syntax error is a eclipse bug
 			char *str = va_arg(ap, char *);
 			list_append(params, m_itos(strlen(str)));
-			list_append(params, m_cpy(str));
+			list_append(params, strdup(str));
         }
         return params;
 }
@@ -142,15 +142,15 @@ public List* byte_to_params(Buf* buf){
 
 public RPCRequest* create_rpc_request(char* cmd, List *params){
         RPCRequest* rpcRequest = malloc2(sizeof(RPCRequest));
-        cpy(rpcRequest->magic, RPC_REQUEST_MAGIC);
-        rpcRequest->cmd_name = m_cpy(cmd);
+        strcpy(rpcRequest->magic, RPC_REQUEST_MAGIC);
+        rpcRequest->cmd_name = strdup(cmd);
         rpcRequest->params = params;
         return rpcRequest;
 }
 
 public RPCResponse* create_rpc_response(int status, int result_length, byte* result){
 		RPCResponse* rpcResponse = malloc2(sizeof(RPCResponse));
-		cpy(rpcResponse->magic, RPC_RESPONSE_MAGIC);
+		strcpy(rpcResponse->magic, RPC_RESPONSE_MAGIC);
 		rpcResponse->status_code = status;
 		rpcResponse->result_length = result_length;
 		rpcResponse->result = result;
@@ -169,10 +169,11 @@ private Buf* rpc_request_to_byte(RPCRequest* rpcRequest){
 }
 
 private RPCRequest* byte_to_rpc_request(byte* bytes){
+
         RPCRequest* rpcRequest = malloc2(sizeof(RPCRequest));
         Buf* buf = create_buf(0, bytes);
         char* magic_string = buf_load(buf, sizeof(rpcRequest->magic));
-        cpy(rpcRequest->magic, magic_string);
+        strcpy(rpcRequest->magic, magic_string);
         free2(magic_string);
         rpcRequest->cmd_length = buf_load_int(buf);
         rpcRequest->cmd_name = (char*)buf_load(buf, rpcRequest->cmd_length);
@@ -183,8 +184,11 @@ private RPCRequest* byte_to_rpc_request(byte* bytes){
 
 /** will free the inside params **/
 public void destory_rpc_request(RPCRequest* rpcRequest){
-        list_destory(rpcRequest->params, just_free);
-		frees(2, rpcRequest->cmd_name, rpcRequest);
+    if (rpcRequest == NULL) {
+        return;
+    }
+    list_destory(rpcRequest->params, just_free);
+    frees(2, rpcRequest->cmd_name, rpcRequest);
 }
 
 /** will free inside result **/
@@ -205,7 +209,7 @@ private RPCResponse* byte_to_rpc_response(byte* bytes){
 		RPCResponse* rpcResponse = malloc2(sizeof(RPCResponse));
 		Buf* buf = create_buf(0, bytes);
 		char* magic_string = buf_load(buf, sizeof(rpcResponse->magic));
-		cpy(rpcResponse->magic, magic_string);
+		strcpy(rpcResponse->magic, magic_string);
 		free2(magic_string);
 		rpcResponse->status_code =  buf_load_int(buf);
 		rpcResponse->result_length = buf_load_int(buf);
@@ -263,6 +267,13 @@ private void setTcpReuse(int sockfd)
 
 /* need to free the result */
 public RPCResponse* connect_conn(char* conn, RPCRequest* rpcRequest){
+        if (conn == NULL) {
+            logg(INFO, "Please specify the master address\n");
+            return NULL;
+        }
+        if (rpcRequest == NULL) {
+            return NULL;
+        }
         RPCResponse* rpcResponse = NULL;
         char* ip_address = m_get_ip_address(conn);
         int port = get_port(conn);
@@ -271,7 +282,9 @@ public RPCResponse* connect_conn(char* conn, RPCRequest* rpcRequest){
         int sockfd, n;
 
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
+        if (sockfd < 0) {
+            return NULL;
+        }
         bzero(&servaddr, sizeof(servaddr));
         servaddr.sin_family = AF_INET;
         inet_pton(AF_INET, ip_address, &servaddr.sin_addr);
@@ -284,10 +297,10 @@ public RPCResponse* connect_conn(char* conn, RPCRequest* rpcRequest){
         if (ret < 0) {
         	logg(ISSUE, "Failed to connect to server %s.", conn);
         	rpcResponse = create_rpc_response(CONN_FAIL, 0, NULL);
-        }else{
+        } else {
 			//process rpc request
 			Buf* rpc_request_buf = rpc_request_to_byte(rpcRequest);
-			write(sockfd, get_buf_data(rpc_request_buf), get_buf_index(rpc_request_buf));
+			ret = write(sockfd, get_buf_data(rpc_request_buf), get_buf_index(rpc_request_buf));
 			n = read(sockfd, buf, CONN_BUF_SIZE);
 			//If n == 0, measn the remote node have encounter some bad problems
 			if(n == 0){
@@ -305,6 +318,7 @@ public RPCResponse* connect_conn(char* conn, RPCRequest* rpcRequest){
 
 /** server part **/
 private void start_daemon(int listenfd, RPCResponse* (*handler_request)(char *cmd, List* params)){
+    int ret;
         struct sockaddr_in cliaddr;
         int connfd, n;
         char buf[CONN_BUF_SIZE];
@@ -312,7 +326,25 @@ private void start_daemon(int listenfd, RPCResponse* (*handler_request)(char *cm
         while(1){
 			socklen_t cliaddr_len = sizeof(cliaddr);
 			connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &cliaddr_len);
-			n = read(connfd, buf, CONN_BUF_SIZE);
+            if (connfd < 0) {
+                if (connfd == EINTR) {
+                    continue;
+                }
+                break;
+            }
+_read_again:
+			n = read(connfd, buf, CONN_BUF_SIZE - 1);
+            if (n > 0) {
+                buf[n] = '\0'; /* terminate the string */
+            } else if (n == 0) {
+                close(connfd);
+            } else if (errno == EINTR) {
+                goto _read_again;
+            } else {
+                close(connfd);
+                ret = errno;
+                break;
+            }
 			RPCRequest* rpcRequest = byte_to_rpc_request(buf);
 			RPCResponse* rpcResponse = NULL;
 			if(rpcRequest->cmd_name != NULL){
@@ -357,7 +389,7 @@ public void startup(int servPort, RPCResponse* (*handler_request)(char *cmd, Lis
 
 #ifdef RPC_TEST
 void testcase_for_rpc_request(void){
-        List* params = generate_charactor_params(3 ,m_cpy("test1") ,m_cpy("test2") ,m_cpy("test3"));
+        List* params = generate_charactor_params(3 ,strdup("test1") ,strdup("test2") ,strdup("test3"));
         char* cmd = "test_cmd";
         RPCRequest* rpcRequest = create_rpc_request(cmd, params);
         Buf* buf = rpc_request_to_byte(rpcRequest);
@@ -372,7 +404,7 @@ void testcase_for_rpc_request(void){
 }
 
 void testcase_for_rpc_response(void){
-        RPCResponse* rpcResponse = create_rpc_response(SUCCESS,  5, m_cpy("test5"));
+        RPCResponse* rpcResponse = create_rpc_response(SUCCESS,  5, strdup("test5"));
         Buf* buf = rpc_response_to_byte(rpcResponse);
         FILE *fp = fopen("test", "wb");
         fwrite(get_buf_data(buf), get_buf_index(buf), 1, fp);
@@ -387,8 +419,8 @@ void testcase_for_rpc_response(void){
 
 void testcase_for_params_byte(void){
         FILE *fp = fopen("test", "wb");
-        List* params = generate_charactor_params(3 ,m_cpy("test1") ,m_cpy("test2") ,m_cpy("test3"));
-        add_param(params, 4, m_cpy("test4"));
+        List* params = generate_charactor_params(3 ,strdup("test1") ,strdup("test2") ,strdup("test3"));
+        add_param(params, 4, strdup("test4"));
 
         Buf* buf = params_to_byte(params);
         printf("The size of buf:%d\n", get_buf_index(buf));

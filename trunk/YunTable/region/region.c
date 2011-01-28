@@ -124,7 +124,7 @@ private void flush_tablets_info(char* file_path, List* tabletList){
 private Region* init_region_struct(char *conf_path){
 		//init the local region
 		Region* region = malloc2(sizeof(Region));
-		region->conf_path = m_cpy(conf_path);
+		region->conf_path = strdup(conf_path);
 		region->used_size = 0;
 		region->tabletList = list_create();
 		region->incr_item_id = 0;
@@ -188,7 +188,7 @@ public void load_local_region(char *conf_path){
    		while ((dp = readdir(regionFolder)) != NULL) {
 			//if d_type is 4, means it is a dir
   			if(dp->d_type == 4){
- 				if(cmp(dp->d_name, TABLET_FOLDER_PREFIX, strlen(TABLET_FOLDER_PREFIX))){
+ 				if(str_n_match(dp->d_name, TABLET_FOLDER_PREFIX, strlen(TABLET_FOLDER_PREFIX))){
 					Tablet *tablet = load_tablet(dp->d_name);
 					list_append(regionInst->tabletList, tablet);
 					long last_flushed_id = get_last_flushed_id_from_conf(regionInst->conf_path, dp->d_name);
@@ -346,7 +346,7 @@ public RPCResponse* handler_region_request(char *cmd, List* params){
 				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
 			}else{
 				boolean bool = add_new_tablet_region(table_name);
-				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
+				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), strdup(bool_to_str(bool)));
 			}
 		}else if(match(PUT_DATA_REGION_CMD, cmd)){
 			char* table_name = get_param(params, 0);
@@ -358,7 +358,7 @@ public RPCResponse* handler_region_request(char *cmd, List* params){
 			}else{
 				ResultSet* resultSet = byte_to_result_set(result_set_bytes);
 				boolean bool = put_data_region(table_name, resultSet);
-				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
+				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), strdup(bool_to_str(bool)));
 			}
 		}else if(match(QUERY_ROW_REGION_CMD, cmd)){
 			char* table_name = get_param(params, 0);
@@ -424,10 +424,10 @@ public RPCResponse* handler_region_request(char *cmd, List* params){
 				long long begin_timestamp = btoll(begin_timestamp_bytes);
 				long long end_timestamp = btoll(end_timestamp_bytes);
 				boolean bool =  start_sync_region(target_conn, table_name, begin_timestamp, end_timestamp);
-				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
+				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), strdup(bool_to_str(bool)));
 			}
 		}else if(match(GET_ROLE_CMD, cmd)){
-			rpcResponse = create_rpc_response(SUCCESS, strlen(REGION_KEY), m_cpy(REGION_KEY));
+			rpcResponse = create_rpc_response(SUCCESS, strlen(REGION_KEY), strdup(REGION_KEY));
 		}else{
 			rpcResponse = create_rpc_response(ERROR_WRONG_CMD, 0, NULL);
 		}

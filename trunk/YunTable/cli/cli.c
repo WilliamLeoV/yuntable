@@ -56,13 +56,19 @@ typedef struct _CliCache{
 		List* tableInfoList;
 }CliCache;
 
+typedef int (*cli_cmd_func_t)(Tokens* space_tokens);
+typedef struct cli_action_func_s {
+    cli_cmd_func_t func;
+    char *action;
+} cli_action_func_t;
+
 CliCache* cliCacheInst = NULL;
 
 private char* get_table_name(char *string){
         char *table_name = NULL;
         Tokens *fenn_tokens = init_tokens(string, ':');
         if(fenn_tokens->size == 2 && match(fenn_tokens->tokens[0], TABLE_KEY)){
-        	table_name = m_cpy(fenn_tokens->tokens[1]);
+        	table_name = strdup(fenn_tokens->tokens[1]);
         }
         free_tokens(fenn_tokens);
         return table_name;
@@ -76,7 +82,7 @@ private TableInfo* get_table_info_from_master(char* master_conn, char* table_nam
         RPCResponse* rpcResponse = connect_conn(master_conn, rpcRequest);
         int status_code = get_status_code(rpcResponse);
         if(status_code == SUCCESS){
-        	char* table_info_string = get_result(rpcResponse);
+            char* table_info_string = get_result(rpcResponse);
             if(table_info_string != NULL){
     			List* lines = generate_list_by_token(table_info_string, LINE_SEPARATOR);
     			tableInfo = string_to_table_info(table_name, lines);
@@ -91,25 +97,30 @@ private TableInfo* get_table_info_from_master(char* master_conn, char* table_nam
 }
 
 private void update_table_info_list(CliCache* cliCache){
+        ListNode *node;
         List* oldTableInfoList = cliCache->tableInfoList;
-        int i, size=list_size(oldTableInfoList);
         List* newTableInfoList = list_create();
-        for(i=0; i<size; i++){
-			TableInfo* oldTableInfo = list_get(oldTableInfoList, i);
-			TableInfo* newTableInfo = get_table_info_from_master(cliCache->master_conn, oldTableInfo->table_name);
-			if(newTableInfo == NULL) continue;
-			list_append(newTableInfoList, newTableInfo);
+        TableInfo* oldTableInfo;
+        TableInfo* newTableInfo;
+        for_each_list_node(node, oldTableInfoList) {
+            oldTableInfo = node->data;
+            newTableInfo = get_table_info_from_master(cliCache->master_conn, oldTableInfo->table_name);
+            if(newTableInfo == NULL) {
+                continue;
+            }
+            list_append(newTableInfoList, newTableInfo);
         }
         cliCache->tableInfoList = newTableInfoList;
         list_destory(oldTableInfoList, destory_table_info);
 }
 
 /** if the table info can't not find the tableInfoList, the method will contact master and get new, also will update the local cache **/
-private TableInfo* search_and_update_table_info(CliCache* cliCache, char* table_name){
+private TableInfo* search_and_update_table_info(CliCache* cliCache, char* table_name)
+{
         TableInfo *tableInfo = get_table_info(cliCache->tableInfoList, table_name);
         if(tableInfo == NULL){
         	if(cliCache->master_conn == NULL){
-        		printf("%s.\n", ERR_MSG_NO_MASTER);
+        		printf("%s.\n", err_to_str(ERR_NO_MASTER));
         	}else{
         		tableInfo = get_table_info_from_master(cliCache->master_conn, table_name);
         		if(tableInfo != NULL) list_append(cliCache->tableInfoList, tableInfo);
@@ -151,7 +162,8 @@ private boolean add_new_region(char* master_conn, char* region_conn){
 }
 
 /** Will send a msg to the master node and to check the validity of reported region node **/
-private boolean check_problem_region(char* problem_region_conn){
+private boolean check_problem_region(char* problem_region_conn)
+{
 		printf("The Region Node %s may have some problem.", problem_region_conn);
 		boolean result = false;
 		printf("Now let master check the validity of %s.\n", problem_region_conn);
@@ -175,54 +187,55 @@ private boolean check_problem_region(char* problem_region_conn){
  * 		add region:172.0.0.1:8302
  *  	add table:people //The input table name shouldn't contain space
  */
-public char* add(Tokens* space_tokens){
-		char* msg = NULL;
+public int add(Tokens* space_tokens)
+{
+		int ret = OK;
 		//The add normally has two space token
-		if(space_tokens->size > 2){
-			msg = ERR_MSG_WRONG_ADD_CMD;
+		if (space_tokens->size > 2){
+			ret = ERR_WRONG_ADD_CMD;
 		}else{
 			Tokens *fenn_tokens = init_tokens(space_tokens->tokens[1], ':');
-			if(match(fenn_tokens->tokens[0], MASTER_KEY)){
+			if (match(fenn_tokens->tokens[0], MASTER_KEY)){
 				char* new_master_conn = m_cats(3, fenn_tokens->tokens[1], ":", fenn_tokens->tokens[2]);
 				if(check_node_validity(new_master_conn, MASTER_KEY)){
 					cliCacheInst->master_conn = new_master_conn;
 					flush_key_value(cliCacheInst->conf_path, CONF_MASTER_CONN_KEY, cliCacheInst->master_conn);
-					msg = SUCC_MSG_COMPLETED;
+					ret = OK;
 				}else{
-					msg = ERR_MSG_WRONG_MASTER;
+					ret = ERR_WRONG_MASTER;
 				}
 				free2(new_master_conn);
-			}else if(match(fenn_tokens->tokens[0], REGION_KEY)){
+			} else if (match(fenn_tokens->tokens[0], REGION_KEY)){
 				//step 0:check if there is master
 				if(cliCacheInst->master_conn == NULL){
-					msg = ERR_MSG_NO_MASTER;
-				}else{
+					ret = ERR_NO_MASTER;
+				} else {
 					char* new_region_conn = m_cats(3, fenn_tokens->tokens[1], ":", fenn_tokens->tokens[2]);
 					if(add_new_region(cliCacheInst->master_conn, new_region_conn)){
-						msg = SUCC_MSG_COMPLETED;
+						ret = OK;
 					}else{
-						msg = ERR_MSG_WRONG_REGION;
+						ret = ERR_WRONG_REGION;
 					}
 					free2(new_region_conn);
 				}
-			}else {
+			} else {
 				if(cliCacheInst->master_conn == NULL){
-					msg = ERR_MSG_NO_MASTER;
+					ret = ERR_NO_MASTER;
 				}else{
 					char* new_table_name = fenn_tokens->tokens[1];
 					if(new_table_name == NULL){
-						msg = ERR_MSG_NO_TABLE_NAME;
+						ret = ERR_NO_TABLE_NAME;
 					}else{
 						TableInfo* tableInfo = search_and_update_table_info(cliCacheInst, new_table_name);
 						if(tableInfo != NULL){
-							 msg = ISSUE_MSG_TABLE_ALREADY_EXISTED;
+							 ret = ERR_EXIST;
 						}else{
 							if(create_new_table(cliCacheInst->master_conn, new_table_name)){
-							msg = SUCC_MSG_TABLE_CREATED;
+							ret = OK;
 							//Update the table info
 							search_and_update_table_info(cliCacheInst, new_table_name);
 							}else{
-								msg = ERR_MSG_CLUSTER_FULL;
+								ret = ERR_CLUSTER_FULL;
 							}
 						}
 					}
@@ -232,12 +245,12 @@ public char* add(Tokens* space_tokens){
 			update_table_info_list(cliCacheInst);
 			free_tokens(fenn_tokens);
 		}
-		return msg;
+		return ret;
 }
 
 /** the handler methid for put, which will separate the result set by column family **/
-private char* batch_put_data_to_table(CliCache* cliCache, TableInfo* tableInfo, ResultSet* resultSet){
-		char* msg = SUCC_MSG_COMPLETED;
+private int batch_put_data_to_table(CliCache* cliCache, TableInfo* tableInfo, ResultSet* resultSet){
+		int ret = OK;
 		int i=0, rq_size=list_size(tableInfo->replicaQueueList);
 		for(i=0; i<rq_size; i++){
 			ReplicaQueue* replicaQueue = list_get(tableInfo->replicaQueueList, i);
@@ -255,7 +268,7 @@ private char* batch_put_data_to_table(CliCache* cliCache, TableInfo* tableInfo, 
 			if(status_code != SUCCESS || stob(get_result(rpcResponse)) == false ){
 				printf("The Connection to Region Node %s have encountered some problem:%s.\n",
 						tabletInfo->regionInfo->conn, get_error_message(status_code));
-				msg = ERR_MSG_PUT;
+				ret = ERR_PUT;
 				if(status_code == CONN_FAIL && check_problem_region(tabletInfo->regionInfo->conn) == true){
 					printf("The Region Node %s has some problem, and is fixing now.\n", tabletInfo->regionInfo->conn);
 				}
@@ -264,48 +277,46 @@ private char* batch_put_data_to_table(CliCache* cliCache, TableInfo* tableInfo, 
 			destory_rpc_response(rpcResponse);
 			free_buf(buf);
 		}
-		return msg;
+		return ret;
 }
 
 /** sample cmd:put table:people row:me name:"ike" sex:"male" homeaddress:"sh" **/
-public char* put(Tokens* space_tokens){
+public int put(Tokens* space_tokens){
 		char *table_name = get_table_name(space_tokens->tokens[1]);
-		if(table_name == NULL){
-			 return ERR_MSG_NO_TABLE_NAME;
+		if (table_name == NULL) {
+			 return ERR_NO_TABLE_NAME;
 		}
 		TableInfo *tableInfo = search_and_update_table_info(cliCacheInst, table_name);
 		if(tableInfo == NULL){
-			return ERR_MSG_TABLE_NOT_CREATED;
+			return ERR_TABLE_NOT_CREATE;
 		}
 		int i=0, j=0;
 		if(space_tokens->size < 4){
-			return ERR_MSG_NO_COLUMN;
+			return ERR_NO_COLUMN;
 		}
 		int item_size = space_tokens->size - 3;
 		Item **items = malloc2(sizeof(Item *) * item_size);
 		//get row name
 		Tokens *fenn_tokens = init_tokens(space_tokens->tokens[2], ':');
-		char* msg = NULL;
-		if(fenn_tokens->size < 2 || !match(fenn_tokens->tokens[0], ROW_KEY)){
-			msg = ERR_MSG_NO_ROW_KEY;
-		}else{
-			char *rowname = m_cpy(fenn_tokens->tokens[1]);
+        int ret = OK;
+		if (fenn_tokens->size < 2 || !match(fenn_tokens->tokens[0], ROW_KEY)){
+			ret = ERR_NO_ROW_KEY;
+		} else {
 			//get column value
-			for(i=3, j=0; j<item_size; i++, j++){
+			for (i=3, j=0; j<item_size; i++, j++){
 				Tokens *inner_fenn_tokens = init_tokens(space_tokens->tokens[i], ':');
 				char* column_name = inner_fenn_tokens->tokens[0];
 				char *value = trim(inner_fenn_tokens->tokens[1], '"');
-				items[j] = m_create_item(rowname, column_name, value);
+				items[j] = m_create_item(fenn_tokens->tokens[1], column_name, value);
 				free_tokens(inner_fenn_tokens);
 			}
 			//commit
 			ResultSet *resultSet = m_create_result_set(j, items);
-			msg = batch_put_data_to_table(cliCacheInst, tableInfo, resultSet);
+			ret = batch_put_data_to_table(cliCacheInst, tableInfo, resultSet);
 			destory_result_set(resultSet);
-			free2(rowname);
 		}
 		free_tokens(fenn_tokens);
-		return msg;
+		return ret;
 }
 
 /* if row_key == NULL, will return all the data belong to the table */
@@ -340,7 +351,6 @@ private ResultSet* query_table(CliCache *cliCache, TableInfo* tableInfo, char *r
 				}else{
 					printf("The Connection to Region Node %s have encountered some problems:%s.\n",
 							tabletInfo->regionInfo->conn, get_error_message(status_code));
-					//Currently only connection failed situation will report to the master
 					if(status_code == CONN_FAIL && check_problem_region(tabletInfo->regionInfo->conn) == true){
 						printf("The Region Node %s has some problem, and is fixing now.\n", tabletInfo->regionInfo->conn);
 					}
@@ -354,15 +364,15 @@ private ResultSet* query_table(CliCache *cliCache, TableInfo* tableInfo, char *r
 
 /** sample cmd:
  * get table:people row:me **/
-public char* get(Tokens* space_tokens){
-		char *msg = NULL;
+public int get(Tokens* space_tokens){
+		int ret = OK;
     	char *table_name = get_table_name(space_tokens->tokens[1]);
         if(table_name == NULL) {
-			return ERR_MSG_NO_TABLE_NAME;
+			return ERR_NO_TABLE_NAME;
         }
         TableInfo *tableInfo = search_and_update_table_info(cliCacheInst, table_name);
         if (tableInfo == NULL) {
-			return ERR_MSG_TABLE_NOT_CREATED;
+			return ERR_TABLE_NOT_CREATE;
         }
         ResultSet* resultSet = NULL;
         //Goes to get all method
@@ -373,21 +383,21 @@ public char* get(Tokens* space_tokens){
         else{
 			Tokens *fenn_tokens = init_tokens(space_tokens->tokens[2],':');
 			if(!match(fenn_tokens->tokens[0], ROW_KEY)){
-				msg = ERR_MSG_NO_ROW_KEY;
+				ret = ERR_NO_ROW_KEY;
 			}else{
-				char *row_key = m_cpy(fenn_tokens->tokens[1]);
+				char *row_key = strdup(fenn_tokens->tokens[1]);
 				resultSet = query_table(cliCacheInst, tableInfo, row_key);
 				free2(row_key);
 			}
 			free_tokens(fenn_tokens);
         }
         if(resultSet->size == 0){
-			msg = ISSUE_MSG_NOTHING_FOUND;
+			ret = ERR_NOTHING_FOUND;
         }else {
 			print_result_set_in_nice_format(resultSet);
         }
         destory_result_set(resultSet);
-        return msg;
+        return ret;
 }
 
 private void show_table_metadata(TableInfo* tableInfo){
@@ -424,7 +434,7 @@ private void show_table_metadata(TableInfo* tableInfo){
 
 private void show_master_metadata(CliCache* cliCache){
 		if(cliCache->master_conn == NULL){
-			printf("%s.\n", ERR_MSG_NO_MASTER);
+			printf("%s.\n", err_to_str(ERR_NO_MASTER));
 		}else{
 			RPCRequest* rpcRequest = create_rpc_request(GET_METADATA_MASTER_CMD, NULL);
 			RPCResponse* rpcResponse = connect_conn(cliCache->master_conn, rpcRequest);
@@ -444,22 +454,23 @@ private void show_master_metadata(CliCache* cliCache){
  * 	 1) show table:people // which retrieve the table's metadata
  *   2) show master  //which retrieve the master's metadata
  * **/
-public char* show(Tokens* space_tokens){
+public int show(Tokens* space_tokens){
 		//Go to Show Master procedure or Show Table
+        int ret = OK;
 		if(match(space_tokens->tokens[1], MASTER_KEY)){
 			show_master_metadata(cliCacheInst);
 		}else{
 			char *table_name = get_table_name(space_tokens->tokens[1]);
 			if(table_name == NULL) {
-				return ERR_MSG_CMD_NOT_COMPLETE;
+				return ERR_CMD_NOT_COMPLETE;
 			}
 			TableInfo *tableInfo = search_and_update_table_info(cliCacheInst, table_name);
 			if (tableInfo == NULL) {
-				return ERR_MSG_TABLE_NOT_CREATED;
+				return ERR_TABLE_NOT_CREATE;
 			}
 			show_table_metadata(tableInfo);
 		}
-		return NULL;
+		return ret;
 }
 
 
@@ -467,22 +478,22 @@ public char* show(Tokens* space_tokens){
  * 		del table:people row:me //delete the row key is "me" the data
  *		del table:people row:me name sex //delete the inputted columns if row key is "me"
  * **/
-public char* del(Tokens* space_tokens){
-		char* msg = NULL;
+public int del(Tokens* space_tokens){
+		int ret;
 		char *table_name = get_table_name(space_tokens->tokens[1]);
 		if(table_name == NULL) {
-			return ERR_MSG_NO_TABLE_NAME;
+			return ERR_NO_TABLE_NAME;
 		}
 		TableInfo *tableInfo = search_and_update_table_info(cliCacheInst, table_name);
 		if (tableInfo == NULL) {
-			return ERR_MSG_TABLE_NOT_CREATED;
+			return ERR_TABLE_NOT_CREATE;
 		}
 		Tokens *fenn_tokens = init_tokens(space_tokens->tokens[2],':');
 		if(!match(fenn_tokens->tokens[0], ROW_KEY)){
-			msg = ERR_MSG_NO_ROW_KEY;
+			ret = ERR_NO_ROW_KEY;
 		}else{
 			//get row name
-			char *row_key = m_cpy(fenn_tokens->tokens[1]);
+			char *row_key = strdup(fenn_tokens->tokens[1]);
 			ResultSet* resultSet = NULL;
 			//If space tokens size bigger than 3, means has inputed some columns
 			if(space_tokens->size == 3){
@@ -501,14 +512,14 @@ public char* del(Tokens* space_tokens){
 				}
 				resultSet = m_create_result_set(column_size, items);
 			}
-			msg = batch_put_data_to_table(cliCacheInst, tableInfo, resultSet);
+			ret = batch_put_data_to_table(cliCacheInst, tableInfo, resultSet);
 			destory_result_set(resultSet);
 		}
 		free_tokens(fenn_tokens);
-		return msg;
+		return ret;
 }
 
-public void help(void){
+public int help(Tokens* space_tokens){
         printf("Below are some sample commands:\n");
         printf("0)  Add A New Master to the cli.\n");
         printf("    Sample cmd: add master:127.0.0.1:8301\n");
@@ -532,114 +543,145 @@ public void help(void){
         printf("    Sample cmd: show master\n");
         printf("10) Quit the console.\n");
         printf("    Sample cmd: quit\n");
+        return 0;
 }
 
-public char* process(char *cmd){
-        if(cmd == NULL && strlen(cmd) < 3){
-        	return ERR_MSG_NULL_STRING;
+
+cli_action_func_t cli_action_func[] = {
+    {add, ADD_KEY},
+    {put, PUT_KEY},
+    {get, GET_KEY},
+    {del, DEL_KEY},
+    {show, SHOW_KEY},
+    {help, HELP_KEY},
+    {NULL, NULL},
+};
+
+static cli_cmd_func_t cli_get_cmd(const char *action)
+{
+    int i;
+
+    for (i = 0; cli_action_func[i].func != NULL; i++) {
+        if (match(cli_action_func[i].action, action)) {
+            return cli_action_func[i].func;
         }
-        char *msg = NULL;
-        Tokens* space_tokens = init_tokens(cmd, ' ');
-        if(space_tokens->size < 1){
-        	return ERR_MSG_NULL_STRING;
-        }
-        char* action = m_cpy(space_tokens->tokens[0]);
-        if(match(action, ADD_KEY)){
-			msg = add(space_tokens);
-        }else if(match(action, PUT_KEY)){
-			msg = put(space_tokens);
-        }else if(match(action, GET_KEY)){
-			msg = get(space_tokens);
-        }else if(match(action, SHOW_KEY)){
-			msg = show(space_tokens);
-        }else if(match(action, DEL_KEY)){
-			msg = del(space_tokens);
-        }else if(match(action, HELP_KEY)){
-        	help();
-        	//just print
-        	msg = NULL;
-        }else{
-			msg = ERR_MSG_WRONG_ACTION;
-        }
-        free2(action);
-        free_tokens(space_tokens);
-        return msg;
+    }
+    return NULL;
+}
+
+
+public int process(char *cmd)
+{
+    int ret = OK;
+
+    if(cmd == NULL && strlen(cmd) < 3){
+        return ERR_NULL_STRING;
+    }
+    Tokens* space_tokens = init_tokens(cmd, ' ');
+    if(space_tokens->size < 1) {
+        return ERR_NULL_STRING;
+    }
+    cli_cmd_func_t func = cli_get_cmd(space_tokens->tokens[0]);
+    if (func == NULL) {
+        ret = ERR_WRONG_ACTION;
+    } else {
+        ret = func(space_tokens);
+    }
+    free_tokens(space_tokens);
+    return ret;
 }
 
 public void load_cli_cache(char* conf_path){
         cliCacheInst = malloc2(sizeof(CliCache));
-        cliCacheInst->conf_path = m_cpy(conf_path);
+        cliCacheInst->conf_path = strdup(conf_path);
         cliCacheInst->master_conn =  m_get_value_by_key(conf_path, CONF_MASTER_CONN_KEY);
         cliCacheInst->tableInfoList = load_table_info_list(conf_path);
 }
 
-private char *cli_normalize_cmd(char *cmd){
-        cmd = trim(cmd, LINE_SEPARATOR);
-        cmd = trim(cmd, ' ');
-        return cmd;
+private char *cli_normalize_cmd(char *cmd)
+{
+    cmd = trim(cmd, LINE_SEPARATOR);
+    cmd = trim(cmd, ' ');
+    return cmd;
 }
 
-public void start_cli_daemon(){
-		//Step 1. Show the master connection info
-    	printf("Welcome to YunTable\n");
-		char *cli_str;
-        if(cliCacheInst->master_conn == NULL) {
-        	printf("No Master Connection has been setup\n");
-        } else {
-        	printf("The Master connection to %s has been setup\n", cliCacheInst->master_conn);
+public int start_cli_daemon()
+{
+    int ret = 0;
+    char *cli_str;
+    //Step 1. Show the master connection info
+    printf("Welcome to YunTable\n");
+    if(cliCacheInst->master_conn == NULL) {
+        printf("No Master Connection has been setup\n");
+    } else {
+        printf("The Master connection to %s has been setup\n", cliCacheInst->master_conn);
+    }
+
+    //step 2. print help
+    printf("Please type \"help\" if you need some further information.\n");
+
+    //step 3. start the cli and receive inputted cmd
+    char buf[LINE_BUF_SIZE];
+    while (1) {
+        printf(DEFAULT_YUNTABLE_CLI_PREFIX);
+        cli_str = fgets(buf, LINE_BUF_SIZE, stdin);
+        if (!cli_str) {
+            ret = ferror(stdin);
+            fprintf(stderr, "get cmd error %d\n", ret);
+            break; /* continue or break */
         }
-        //step 2. print help
-        printf("Please type \"help\" if you need some further information.\n");
-        //step 3. start the cli and receive inputted cmd
-        char buf[LINE_BUF_SIZE];
-        while(1){
-			printf(DEFAULT_YUNTABLE_CLI_PREFIX);
-			cli_str = fgets(buf, LINE_BUF_SIZE, stdin);
-			if (!cli_str) {
-				printf("get cmd error %d\r\n", ferror(stdin));
-				continue; /* continue or break */
-			}
-			cli_str = cli_normalize_cmd(cli_str);
-			if (strlen(cli_str) == 0) {
-				continue;
-			}
-			if(match(cli_str, QUIT_KEY)) break;
-			char* msg = process(cli_str);
-			if(msg != NULL && strlen(msg) != 0){
-				printf("%s\n", msg);
-			}
+        cli_str = cli_normalize_cmd(cli_str);
+        if (strlen(cli_str) == 0) {
+            continue;
         }
+        if(match(cli_str, QUIT_KEY)) {
+            break;
+        }
+        ret = process(cli_str);
+        if(ret != 0) {
+            printf("%s\n", err_to_str(ret));
+        }
+    }
+    return ret;
 }
 
-public void slient_mode(int argc, char** argv){
-		if(argc == 2){
-			printf("%s\n", ERR_MSG_NO_CMD_INPUT);
-		}else{
-			char* cmd = array_to_string(argv, 2, argc-1);
-			printf("%s\n",cmd);
-			char* msg = process(cmd);
-			if(msg != NULL && strlen(msg) != 0){
-				printf("%s\n", msg);
-			}
-		}
+public int slient_mode(int argc, char** argv)
+{
+    int ret = 0;
+    if(argc == 2){
+        printf("%s\n", err_to_str(ERR_NO_CMD_INPUT));
+        ret = ERR_NO_CMD_INPUT;
+    } else {
+        char* cmd = array_to_string(argv, 2, argc-1);
+        printf("%s\n",cmd);
+        ret = process(cmd);
+        if(ret != 0){
+            printf("%s\n", err_to_str(ret));
+        }
+    }
+    return ret;
 }
 
 /**
  * sample cmd:
  *     1. Starting cli ./yuncli
- *	   2. Starting cli with conf file ./yuncli -conf conf/cli.conf
- *	   3. Slient mode for testing ./yuncli -cmd add master:127.0.0.1:8301
+ *     2. Starting cli with conf file ./yuncli -conf conf/cli.conf
+ *     3. Slient mode for testing ./yuncli -cmd add master:127.0.0.1:8301
+ *
+ * Return: on success, return 0; others, return error code;
  */
-int main(int argc, char **argv){
-		//Disable the logging, since the majority of err msg for cli are just printed
-		setup_logging(DISABLE, "");
-		//Init the cli cache
-		char *conf_path = get_conf_path_from_argv(argc, argv, DEFAULT_CLI_CONF_PATH);
-		load_cli_cache(conf_path);
-		if(argc >= 2 && match(argv[1], CMD_OPTION_KEY)){
-			slient_mode(argc, argv);
-		}else{
-			start_cli_daemon();
-		}
-		return 1;
+int main(int argc, char **argv)
+{
+    int ret = 0;
+    //Disable the logging, since the majority of err msg for cli are just printed
+    setup_logging(DISABLE, "");
+    //Init the cli cache
+    char *conf_path = get_conf_path_from_argv(argc, argv, DEFAULT_CLI_CONF_PATH);
+    load_cli_cache(conf_path);
+    if (argc >= 2 && match(argv[1], CMD_OPTION_KEY)) {
+        ret = slient_mode(argc, argv);
+    } else {
+        ret = start_cli_daemon();
+    }
+    return ret;
 }

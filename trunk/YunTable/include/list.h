@@ -20,8 +20,18 @@
 #include "global.h"
 
 /** structs declaration **/
-struct _List;
-typedef struct _List List;
+typedef struct _ListNode{
+        struct _ListNode *next;
+        struct _ListNode *prev;
+        void* data;
+}ListNode;
+
+typedef struct _List{
+    ListNode* cursor;
+    ListNode* first;
+    ListNode* last;
+    unsigned long node_num;
+} List;
 
 /** public method declaration **/
 public List* list_create(void);
@@ -40,7 +50,7 @@ public List* list_find_all(List* thiz, void* target, boolean(*match)(void *objec
 
 public void list_replace(List* thiz, void* old_data, void* new_data);
 
-public boolean list_remove(List* thiz, void* data, void (*free_object)(void *object));
+public int list_remove(List* thiz, void* data, void (*free_object)(void *object));
 
 public void list_rewind(List* thiz);
 
@@ -48,7 +58,7 @@ public List* list_sort(List* thiz);
 
 public int list_size(List* thiz);
 
-public void list_destory(List* thiz, void (*free_object)(void *object))	;
+public void list_destory(List* thiz, void (*free_object)(void *object)) ;
 
 public void only_free_struct(void *p);
 
@@ -58,5 +68,12 @@ public List* array_to_list(void** array, int size);
 
 public void** list_to_array(List* thiz);
 
+#define for_each_list_node(node, thiz)                 \
+    for (node = thiz->first; node; node = node->next)
 
+
+#define for_each_list_node_safe(node, next_node, thiz)              \
+    for (node = thiz->first, next_node = node ? node->next: NULL;   \
+        node;                                                       \
+        node = next_node, next_node = node ? node->next: NULL)
 #endif /* LIST_H_ */

@@ -38,6 +38,7 @@
 #include <signal.h>
 #include <sys/vfs.h>
 
+#include "msg.h"
 /**
  * The Global Header file contains all meta data that will be used throughout the project.
  ***/
@@ -114,5 +115,8 @@ typedef unsigned short boolean;
 #define REGION_KEY "region"
 
 #define MASTER_KEY "master"
+
+
+char *err_to_str(int err);
 
 #endif /* GLOBAL_H_ */

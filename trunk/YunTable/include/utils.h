@@ -28,13 +28,7 @@ extern "c" {
 
 public char* move_pointer(char* pointer, int div);
 
-public char* cat(char* dest, char* src);
-
 public char* m_cats(int size, ...);
-
-public char* cpy(char* dest, char* src);
-
-public char* m_cpy(char *src);
 
 public char* trim(char *str, char deli);
 
@@ -60,9 +54,9 @@ public short btos(byte *b);
 
 public int max(int a, int b);
 
-public boolean cmp(char* dest, char* src, int len);
+public boolean str_n_match(const char* dest, const char* src, int len);
 
-public boolean match(char* dest, char *src);
+public boolean match(const char* dest, const char *src);
 
 public int match_int(char* dest, char* src);
 

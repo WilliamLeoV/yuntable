@@ -92,8 +92,8 @@ private WalItem* load_wal_item(FILE* fp){
 public Wal* load_wal(char* file_path){
 		logg(INFO, "Loading the wal file %s.", file_path);
 		Wal *wal = malloc2(sizeof(Wal));
-		cpy(wal->magic, WAL_MAGIC_HEADER);
-		wal->wal_file_path = m_cpy(file_path);
+		strcpy(wal->magic, WAL_MAGIC_HEADER);
+		wal->wal_file_path = strdup(file_path);
 		//if the file not exist, create file
 		if(file_exist(wal->wal_file_path) == false){
 			refresh_wal(wal, NULL);

@@ -39,7 +39,7 @@ public char* key_and_value_to_line(char* key, char* value){
 
 public char* m_get_key(char* line){
         Tokens *tokens = init_tokens(line, CONF_SEPARATOR);
-        char* key = m_cpy(trim(tokens->tokens[0], ' '));
+        char* key = strdup(trim(tokens->tokens[0], ' '));
         free_tokens(tokens);
         return key;
 }
@@ -48,7 +48,7 @@ public char* m_get_value(char* line){
         char* value = NULL;
         Tokens *tokens = init_tokens(line, CONF_SEPARATOR);
         if(tokens->size > 1){
-        	value = m_cpy(trim(tokens->tokens[1], ' '));
+        	value = strdup(trim(tokens->tokens[1], ' '));
         }
         free_tokens(tokens);
         return value;
@@ -122,8 +122,8 @@ private char* key_and_value_list_to_line(char *key, List* valueList){
 
 public SyncJob* create_sync_job(char* target_conn, char* table_name, long long begin_timestamp, long long end_timestamp){
 		SyncJob* syncJob = malloc2(sizeof(SyncJob));
-		syncJob->target_conn = m_cpy(target_conn);
-		syncJob->table_name = m_cpy(table_name);
+		syncJob->target_conn = strdup(target_conn);
+		syncJob->table_name = strdup(table_name);
 		syncJob->begin_timestamp = begin_timestamp;
 		syncJob->end_timestamp = end_timestamp;
 		return syncJob;
@@ -144,7 +144,7 @@ public RegionInfo* get_region_info(List* regionInfoList, char* region_conn){
 
 public RegionInfo* create_region_info(char* region_conn){
         RegionInfo* regionInfo = malloc2(sizeof(RegionInfo));
-        regionInfo->conn = m_cpy(region_conn);
+        regionInfo->conn = strdup(region_conn);
         regionInfo->connecting = true;
         regionInfo->serving = true;
         regionInfo->avail_space = 0;
@@ -314,7 +314,7 @@ public ReplicaQueue* string_to_replica_queue(int id, char* string){
 
 public TableInfo* create_table_info(char *table_name){
 		TableInfo *tableInfo = malloc2(sizeof(TableInfo));
-		tableInfo->table_name = m_cpy(table_name);
+		tableInfo->table_name = strdup(table_name);
 		tableInfo->replicaQueueList = list_create();
 		return tableInfo;
 }
@@ -406,7 +406,7 @@ private char* table_info_list_to_string(List* tableInfoList){
         while((tableInfo = list_next(tableInfoList)) != NULL){
 			char* tableInfoString = table_info_to_string(tableInfo);
 			buf_cat(buf, tableInfoString, strlen(tableInfoString));
-			list_append(tableList, m_cpy(tableInfo->table_name));
+			list_append(tableList, strdup(tableInfo->table_name));
 
 			free2(tableInfoString);
         }
@@ -505,9 +505,9 @@ void testcase_for_region_list(void){
 
 void testcast_for_conf_list_to_string(void){
         List* list = list_create();
-        list_append(list, m_cpy("test1"));
-        list_append(list, m_cpy("test2"));
-        list_append(list, m_cpy("test3"));
+        list_append(list, strdup("test1"));
+        list_append(list, strdup("test2"));
+        list_append(list, strdup("test3"));
         char* key = "test";
         char* result = key_and_value_list_to_line(key, list);
         printf("%s\n", result);
