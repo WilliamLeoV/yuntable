@@ -75,7 +75,7 @@ public char* get_tablet_folder(Tablet* tablet){
 private Tablet* init_tablet_struct(int tablet_id, char *tablet_folder){
 		Tablet *tablet = malloc2(sizeof(Tablet));
 		tablet->id = tablet_id;
-		tablet->folder = m_cpy(tablet_folder);
+		tablet->folder = strdup(tablet_folder);
 		//init memstore and timestamp
 		tablet->memstore = init_memstore(tablet_id);
 		tablet->yfileList = list_create();
@@ -105,7 +105,7 @@ public Tablet* load_tablet(char *tablet_folder){
 public Tablet* create_tablet(int tablet_id, char *tablet_folder, char *table_name){
 		logg(INFO, "Creating a new tablet from table %s at %s.", table_name, tablet_folder);
 		Tablet *tablet = init_tablet_struct(tablet_id, tablet_folder);
-		tablet->table_name = m_cpy(table_name);
+		tablet->table_name = strdup(table_name);
 		mkdir(tablet_folder, S_IRWXU);
 		char* table_name_file_path = m_cats(4, tablet_folder, FOLDER_SEPARATOR_STRING, tablet->table_name, TABLE_EXT);
 		create_or_rewrite_file(table_name_file_path, "");

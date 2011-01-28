@@ -19,8 +19,42 @@
 #include "malloc2.h"
 #include "log.h"
 #include "buf.h"
+#include "msg.h"
 
 /**   string normal operation part  **/
+
+
+static char *err_str[] = {
+    /* SUCCESS              */    "success",
+    /* ERR_NO_CMD_INPUT     */    "Please attach cmd string if you want to use the silent mode.",
+    /* ERR_CMD_NOT_COMPLETE */    "Please input the complete cmd.",
+    /* ERR_NULL_STRING      */    "The input string is NULL or invalid.",
+    /* ERR_WRONG_ACTION     */    "The action you just input is not supported. Please type \"help\" for more information.",
+    /* ERR_NO_COLUMN        */    "No column has been inputed.",
+    /* ERR_NO_TABLE_NAME    */    "No table name has been inputed.",
+    /* ERR_NO_ROW_KEY       */    "Should have a row key.",
+    /* ERR_PUT              */    "The Put Data action has failed.",
+    /* ERR_TABLE_NOT_CREATE */    "Please create the table first.",
+    /* ERR_NO_MASTER        */    "Please set up a master at first",
+    /* ERR_CLUSTER_FULL     */    "Can not get a new region for this table because the whole cluster is full.",
+    /* ERR_WRONG_MASTER     */    "Either the inputted master is wrong or has some connection problem.",
+    /* ERR_WRONG_REGION     */    "Either the inputted region is wrong, has some connection problem or already existed.",
+    /* ERR_WRONG_ADD_CMD    */    "The Add Command is not valid, for example, the table name contains space",
+    /* ERR_NOTHING_FOUND    */    "Nothing has been found.",
+    /* ERR_EXIST            */    "The table has already existed.",
+    /* ERR_NO_EXIST         */    "The entry does not exist",
+    /* ERR_INVAL            */    "invalid value",
+};
+
+char *err_to_str(int err)
+{
+    static char err_buf[128];
+    if (err < 0 || err >= ERR_MAX) {
+        snprintf(err_buf, sizeof(err_buf), "unknown error, errno = %d", err);
+        return err_buf;
+    }
+    return err_str[err];
+}
 
 /** the safe implmenetaion of strcat **/
 public char* move_pointer(char* pointer, int div){
@@ -30,9 +64,6 @@ public char* move_pointer(char* pointer, int div){
         return temp;
 }
 
-public char* cat(char* dest, char* src){
-        return strncat(dest, src, strlen(src));
-}
 
 /**allocate a memory chunk and concat multiple strings**/
 public char* m_cats(int size, ...){
@@ -47,24 +78,17 @@ public char* m_cats(int size, ...){
 			char *str = va_arg(ap, char *);
 			int len = strlen(dest) + strlen(str);
 			dest = realloc2(dest, len + 1);
-			cat(dest, str);
+			strcat(dest, str);
 			dest[len] = '\0';
         }
         return dest;
 }
 
 
-/** the safe implmenetaion of strcpy, need to make sure
- * the size of dest is bigger than the size of src + 1 **/
-public char* cpy(char* dest, char* src){
-        memset(dest, 0, strlen(src)+1);
-        return strncpy(dest, src, strlen(src));
-}
-
 /** will create a memory chunk, before cpy, and needs to be freed**/
-public char* m_cpy(char *src){
+public char* strdup(const char *src){
         char *s = mallocs(strlen(src));
-        return cpy(s, src);
+        return strcpy(s, src);
 }
 
 public char* trim(char *str, char deli){
@@ -92,17 +116,19 @@ public int max(int a, int b){
 }
 
 /** the simple implmenetaion for strncmp, and ignore case **/
-public boolean cmp(char* dest, char* src, int len){
-        boolean result = false;
-        if(strncasecmp(dest, src, len)==0) result = true;
-        return result;
+public boolean str_n_match(const char* dest, const char* src, int len)
+{
+    boolean result = false;
+    if(strncasecmp(dest, src, len)==0) {
+        result = true;
+    }
+    return result;
 }
 
 /** the safe version of cmp,  will used max len between the two strings and ignore case **/
-public boolean match(char* dest, char *src){
-		int max_len = max(strlen(dest), strlen(src));
-		/** Base on previous experience, strcmp may not fit for this situation **/
-		return cmp(dest, src, max_len);
+public boolean match(const char* dest, const char *src)
+{
+    return strcasecmp(dest, src) == 0;
 }
 
 /**The match method for returning int compare result**/
@@ -260,7 +286,7 @@ public List* generate_list_by_token(char* bytes, char token){
         int i=0;
         for(i=0; i<tokens->size; i++){
 			if(strlen(tokens->tokens[i]) == 0) continue;
-			char* item = m_cpy(tokens->tokens[i]);
+			char* item = strdup(tokens->tokens[i]);
 			list_append(list, item);
         }
         free_tokens(tokens);
@@ -354,7 +380,7 @@ public List* get_files_path_by_ext(char *folder_path, char *ext){
 public char* m_get_file_name_by_ext(char* folder, char* ext){
         List *files = get_files_path_by_ext(folder, ext);
         Tokens* tokens = init_tokens(get_full_file_name(list_get(files, 0)), MID_SEPARATOR);
-        char* file_name = m_cpy(tokens->tokens[0]);
+        char* file_name = strdup(tokens->tokens[0]);
         free_tokens(tokens);
         return file_name;
 }
@@ -383,8 +409,8 @@ public List* get_lines_from_text_file_base_on_prefix(char* file_path, char* pref
         List* newLines = list_create();
         char* line = NULL;
         while((line = list_next(lines)) != NULL){
-			if(cmp(line, prefix, strlen(prefix)))
-				list_append(newLines, m_cpy(line));
+			if(str_n_match(line, prefix, strlen(prefix)))
+				list_append(newLines, strdup(line));
         }
         list_destory(lines, just_free);
         return newLines;
@@ -394,7 +420,7 @@ public List* get_lines_from_text_file_base_on_prefix(char* file_path, char* pref
 public char* m_get_ip_address(char* connection_string){
         char* ip_address = NULL;
         Tokens* tokens = init_tokens(connection_string, ':');
-        ip_address = m_cpy(tokens->tokens[0]);
+        ip_address = strdup(tokens->tokens[0]);
         free_tokens(tokens);
         return ip_address;
 }
@@ -405,6 +431,7 @@ public int get_port(char* connection_string){
         free_tokens(tokens);
         return port;
 }
+
 
 /** only allows character list **/
 public List* string_to_list(char* list_string){
@@ -575,7 +602,7 @@ void testcase_for_m_cats(void){
 
 void testcase_for_m_cpy(void){
         char *src = "hello world";
-        char *dest = m_cpy(src);
+        char *dest = strdup(src);
         printf("%s\n",dest);
         free2(dest);
 }
@@ -597,14 +624,14 @@ void testcase_for_times(void){
 void testcase_for_cmp(void){
         char *dest = "HELlo WorLD";
         char *src = "heLlo WorLD";
-        boolean result = cmp(dest, src, strlen(src));
+        boolean result = str_n_match(dest, src, strlen(src));
         printf("--%s--\n",bool_to_str(result));
 }
 
 void testcase_for_trim(void){
         char *str = "\"male\"";
         char *dest = mallocs(strlen(str));
-        cpy(dest, str);
+        strcpy(dest, str);
         dest = trim(dest, '"');
         printf("the string after trim:%s--\n",dest);
 }
@@ -633,7 +660,7 @@ void testcase_for_remove_pointer(void){
 
 void testcase_for_list_to_string(void){
         List* list = list_create();
-        list_append(list, m_cpy("test"));
+        list_append(list, strdup("test"));
         char* value = list_to_string(list);
         printf("value:%s\n", value);
         free2(value);

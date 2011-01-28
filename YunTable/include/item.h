@@ -38,7 +38,7 @@ public Key* m_clone_key(Key* key);
 
 public Key* m_load_key(FILE *fp);
 
-public Item* m_create_item(char *row_key, char*column_name, char* value);
+public Item* m_create_item(const char *row_key, const char *column_name, const char* value);
 
 public Item* m_load_item(FILE *fp);
 

@@ -322,18 +322,27 @@ public boolean check_problem_region_master(char* problem_region_conn){
 private void update_master_info(Master* master){
 		List* problem_regions = list_create();
 		//Update Region Info
-		int i=0, size=list_size(master->regionInfoList);
+		int i=0;
+        int size=list_size(master->regionInfoList);
+        if (size == 0) {
+            return;
+        }
 		for(i=0; i<size; i++){
 			RegionInfo* regionInfo = list_get(master->regionInfoList, i);
 			update_region_info(regionInfo);
-			if(region_has_problem(regionInfo)) list_append(problem_regions, regionInfo);
+			if(region_has_problem(regionInfo)) {
+                list_append(problem_regions, regionInfo);
+            }
 		}
 		//sort region info list
-		sort_region_info_list(master->regionInfoList);
+        if (size > 1) {
+            sort_region_info_list(master->regionInfoList);
+        }
 		//handle founded problem regions
 		if(list_size(problem_regions)>0){
 			handle_problem_regions(problem_regions, masterInst);
 		}
+        list_destory(problem_regions, just_free);
 		//flushing the table information
 		flush_table_info_list(master->conf_path, master->tableInfoList);
 }
@@ -396,7 +405,7 @@ public char* get_metadata_master(){
 public void load_master(char *conf_path){
 		logg(INFO, "Loading the master info from conf path is %s.", conf_path);
 		masterInst = malloc2(sizeof(Master));
-		masterInst->conf_path = m_cpy(conf_path);
+		masterInst->conf_path = strdup(conf_path);
 		int port = get_int_value_by_key(conf_path, CONF_PORT_KEY);
 		if(port != INDEFINITE){
 			masterInst->port = port;
@@ -453,7 +462,7 @@ public RPCResponse* handler_master_request(char *cmd, List* params){
 				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
 			}else{
 				boolean bool = add_new_region_master(region_conn);
-				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
+				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), strdup(bool_to_str(bool)));
 			}
 		}else if(match(CREATE_NEW_TABLE_MASTER_CMD, cmd)){
 			char* table_name = get_param(params, 0);
@@ -461,7 +470,7 @@ public RPCResponse* handler_master_request(char *cmd, List* params){
 				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
 			}else{
 				boolean bool = create_new_table_master(table_name);
-				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
+				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), strdup(bool_to_str(bool)));
 			}
 		}else if(match(CHECK_PROBLEM_REGION_MASTER_CMD, cmd)){
 			char* problem_region_conn = get_param(params, 0);
@@ -469,13 +478,13 @@ public RPCResponse* handler_master_request(char *cmd, List* params){
 				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
 			}else{
 				boolean bool = check_problem_region_master(problem_region_conn);
-				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
+				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), strdup(bool_to_str(bool)));
 			}
 		}else if(match(GET_METADATA_MASTER_CMD, cmd)){
 			char* metadata = get_metadata_master();
-			rpcResponse = create_rpc_response(SUCCESS, strlen(metadata), m_cpy(metadata));
+			rpcResponse = create_rpc_response(SUCCESS, strlen(metadata), strdup(metadata));
 		}else if(match(GET_ROLE_CMD, cmd)){
-			rpcResponse = create_rpc_response(SUCCESS, strlen(MASTER_KEY), m_cpy(MASTER_KEY));
+			rpcResponse = create_rpc_response(SUCCESS, strlen(MASTER_KEY), strdup(MASTER_KEY));
 		}else{
 			rpcResponse = create_rpc_response(ERROR_WRONG_CMD, 0, NULL);
 		}

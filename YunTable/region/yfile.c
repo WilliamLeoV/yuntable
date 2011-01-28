@@ -91,10 +91,10 @@ struct _YFile{
 private Trailer* create_trailer(int index_block_offset, char* table_name, size_t total_item_num, Key* firstKey,
 	Key* lastKey, long long begin_timestamp, long long end_timestamp, size_t trailer_offset){
 		Trailer *trailer = malloc2(sizeof(Trailer));
-		cpy(trailer->magic, TRAILER_MAGIC);
+		strcpy(trailer->magic, TRAILER_MAGIC);
 		trailer->index_block_offset = index_block_offset;
 		trailer->table_name_len = strlen(table_name);
-		trailer->table_name = m_cpy(table_name);
+		trailer->table_name = strdup(table_name);
 		trailer->total_item_num = total_item_num;
 		trailer->firstKey = m_clone_key(firstKey);
 		trailer->lastKey = m_clone_key(lastKey);
@@ -149,7 +149,7 @@ private IndexBlock* resize_indexs(IndexBlock *indexBlock, int target_size){
 
 private IndexBlock* create_index_block(void){
 		IndexBlock *indexBlock = malloc2(sizeof(IndexBlock));
-		cpy(indexBlock->magic, INDEX_BLOCK_MAGIC);
+		strcpy(indexBlock->magic, INDEX_BLOCK_MAGIC);
 		indexBlock->index_count = 0;
 		indexBlock->indexs = NULL;
 		indexBlock = resize_indexs(indexBlock, INITIAL_INDEX_SIZE);
@@ -274,7 +274,7 @@ private long long search_timestamp(IndexBlock* indexBlock, boolean begin){
 public YFile* create_new_yfile(char* file_path, ResultSet* resultSet, char* table_name){
 		logg(INFO, "Creating a new yfile %s.", file_path);
 		YFile* yfile = malloc2(sizeof(YFile));
-		yfile->file_path = m_cpy(file_path);
+		yfile->file_path = strdup(file_path);
 		yfile->indexBlock = create_index_block();
 		FILE *fp = fopen(yfile->file_path, "wb");
 
@@ -310,7 +310,7 @@ public YFile* create_new_yfile(char* file_path, ResultSet* resultSet, char* tabl
 public YFile* loading_yfile(char* file_path){
 		logg(INFO, "Loading the yfile %s....", file_path);
 		YFile *yfile = malloc2(sizeof(YFile));
-		yfile->file_path = m_cpy(file_path);
+		yfile->file_path = strdup(file_path);
 		FILE *fp = fopen(file_path, "rb+");
 		//reaches to the end of file
 		fseek(fp, 0, SEEK_END);
@@ -319,7 +319,7 @@ public YFile* loading_yfile(char* file_path){
 		if(file_size < sizeof(yfile->trailer)) return NULL;
 		yfile->trailer = load_trailer(fp);
 		//check the loaded trailer is valid or not
-		if(cmp(yfile->trailer->magic, TRAILER_MAGIC, strlen(TRAILER_MAGIC))==false) return NULL;
+		if(str_n_match(yfile->trailer->magic, TRAILER_MAGIC, strlen(TRAILER_MAGIC))==false) return NULL;
 		//load the index
 		size_t index_block_offset = yfile->trailer->index_block_offset;
 		yfile->indexBlock = load_index_block(index_block_offset, fp);

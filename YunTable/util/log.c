@@ -18,7 +18,7 @@
 #include "malloc2.h"
 
 /**
- *  Create a complete Log Capablity, please setup the logging before using it. 
+ *  Create a complete Log Capablity, please setup the logging before using it.
  **/
 
 /** Global Struct Part **/
@@ -32,8 +32,7 @@ LogSetting *logSetting = NULL; //Init
 public void setup_logging(int log_level, char* log_file_path){
 		logSetting = malloc2(sizeof(LogSetting));
 		logSetting->log_level = log_level;
-		logSetting->log_file_path = mallocs(strlen(log_file_path));
-		strncpy(logSetting->log_file_path, log_file_path, strlen(log_file_path));
+		logSetting->log_file_path = strdup(log_file_path);
 }
 
 /** There is no need to append a line separator at the end of line **/
