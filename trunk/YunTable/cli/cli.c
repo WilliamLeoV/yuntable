@@ -204,7 +204,6 @@ public int add(Tokens* space_tokens)
 				}else{
 					ret = ERR_WRONG_MASTER;
 				}
-				free2(new_master_conn);
 			} else if (match(fenn_tokens->tokens[0], REGION_KEY)){
 				//step 0:check if there is master
 				if(cliCacheInst->master_conn == NULL){
