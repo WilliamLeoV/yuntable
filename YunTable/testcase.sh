@@ -31,8 +31,6 @@ sh build.sh
 echo -e "\n"
 
 echo "Step 2-2, Set up yuncli"
-./startMaster & 
-./startRegion &
 sleep 2
 ./yuncli -cmd add master:127.0.0.1:8301
 echo ""

@@ -193,7 +193,10 @@ public void destory_rpc_request(RPCRequest* rpcRequest){
 
 /** will free inside result **/
 public void destory_rpc_response(RPCResponse* rpcResponse){
-        frees(2, rpcResponse->result, rpcResponse);
+    if (rpcResponse == NULL) {
+        return;
+    }
+    frees(2, rpcResponse->result, rpcResponse);
 }
 
 private Buf* rpc_response_to_byte(RPCResponse *rpcResponse){

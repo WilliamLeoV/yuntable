@@ -85,12 +85,6 @@ public char* m_cats(int size, ...){
 }
 
 
-/** will create a memory chunk, before cpy, and needs to be freed**/
-public char* strdup(const char *src){
-        char *s = mallocs(strlen(src));
-        return strcpy(s, src);
-}
-
 public char* trim(char *str, char deli){
         //remove left side
         while(*str == deli){
@@ -111,24 +105,20 @@ public char* trim(char *str, char deli){
 /** other methods **/
 
 public int max(int a, int b){
-        int max = a > b? a : b;
+        int max = a > b ? a : b;
         return max;
 }
 
 /** the simple implmenetaion for strncmp, and ignore case **/
 public boolean str_n_match(const char* dest, const char* src, int len)
 {
-    boolean result = false;
-    if(strncasecmp(dest, src, len)==0) {
-        result = true;
-    }
-    return result;
+    return !strncasecmp(dest, src, len);
 }
 
 /** the safe version of cmp,  will used max len between the two strings and ignore case **/
 public boolean match(const char* dest, const char *src)
 {
-    return strcasecmp(dest, src) == 0;
+    return !strcasecmp(dest, src);
 }
 
 /**The match method for returning int compare result**/
@@ -223,59 +213,58 @@ public short btos(byte *b){
 
 /**   string tokens operation part  **/
 
-/** this method will remove  the token which is empty or just have a lot of space **/
-private Tokens* clean_tokens(Tokens* tokens){
-        int i=0;
-        for(i=0; i<tokens->size; i++){
-			trim(tokens->tokens[i], ' ');
-			if(strlen(tokens->tokens[i]) == 0){
-				tokens->size--;
-				free2(tokens->tokens[i]);
-				if(i<tokens->size - 1)
-					tokens->tokens[i] = tokens->tokens[i+1];
-			}
-        }
-        return tokens;
-}
-
 /*
  * sample str: name, sex,  home_address, work_address
  * sample deli: , may have some issue on deli
  */
-public Tokens* init_tokens(char *str, char deli){
-        Tokens *tokens = malloc2(sizeof(Tokens));
-        tokens->size = 0;
-        if(str == NULL || strlen(str) == 0) return tokens;
-        char *tmp = str;
-        int i = 0, len = strlen(str);
-        int max_times = count(tmp, deli) + 1;
-        tokens->tokens = malloc2(max_times * sizeof(char*));
-        tokens->tokens[0] = mallocs(len);
-        boolean prev_matched = false;
-        while(*tmp != '\0'){
-			if(*tmp == deli){
-				if(!prev_matched){
-					i++;
-					tokens->tokens[i] = mallocs(len);
-				}
-				prev_matched = true;
-			}else{
-				prev_matched = false;
-				strncat(tokens->tokens[i],tmp,1);
-			}
-			tmp++;
+public Tokens* init_tokens(char *str, char deli)
+{
+#define DEF_TOKEN_NUM 5
+    int alloc_num = DEF_TOKEN_NUM;
+    Tokens *tokens = malloc2(sizeof(Tokens));
+    tokens->size = 0;
+    tokens->tokens = malloc2(alloc_num * sizeof(char*));
+    if (str == NULL || strlen(str) == 0) {
+        return tokens;
+    }
+
+    while (*str == ' ' || *str == '\t' || *str == deli) {
+        str++;
+    }
+    int tnum = 0;
+    while (*str != '\0') {
+        char *start = str;
+        while (*str != '\0' && *str != deli) {
+            str++;
         }
-        tokens->size = i + 1 ;
-        return clean_tokens(tokens);
+        int len = str - start;
+        char *token = malloc2(len + 1);
+        strncpy(token, start, len);
+        token[len] = '\0';
+        tokens->tokens[tnum++] = token;
+        if (tnum >= alloc_num) {
+            alloc_num *= 2;
+            tokens->tokens = realloc2(tokens->tokens, sizeof(char*) * alloc_num);
+        }
+        while (*str == ' ' || *str == '\t' || *str == deli) {
+            str++;
+        }
+    }
+    tokens->size = tnum ;
+    return tokens;
 }
+
+
 
 /*
  * since the tokens has a nested array, it needs a method to free
  */
 public void free_tokens(Tokens* tokens){
-        int i=0;
+        int i;
         for(i=0; i<tokens->size; i++){
-			free2(tokens->tokens[i]);
+            if (tokens->tokens[i] != NULL) {
+                free2(tokens->tokens[i]);
+            }
         }
         free2(tokens);
 }
@@ -559,16 +548,36 @@ void testcase_for_m_itos(void){
         free2(ret);
 }
 
-void testcase_for_token_operations(void){
-        char* test = "insert row:me name:ike sex:male";
-        Tokens* thiz = init_tokens(test,' ');
-        printf("--%d---\n", thiz->size);
+void testcase_for_token_operations(void)
+{
+    Tokens* thiz;
+    char* test1 = "insert row:me  name:ike \tsex:male ";
+    thiz = init_tokens(test1, ' ');
+    assert(thiz->size == 4);
+    assert(strcmp(thiz->tokens[0], "insert") == 0);
+    assert(strcmp(thiz->tokens[1], "row:me") == 0);
+    assert(strcmp(thiz->tokens[2], "name:ike") == 0);
+    assert(strcmp(thiz->tokens[3], "sex:male") == 0);
+    free_tokens(thiz);
 
-        int i=0;
-        for(i=0; i<thiz->size; i++){
-			printf("---%d--%s---\n",i, thiz->tokens[i]);
-        }
-        free_tokens(thiz);
+    char *test2 = "insert#row:me###name:ike###sex:male###";
+    thiz = init_tokens(test2, '#');
+    assert(thiz->size == 4);
+    assert(strcmp(thiz->tokens[0], "insert") == 0);
+    assert(strcmp(thiz->tokens[1], "row:me") == 0);
+    assert(strcmp(thiz->tokens[2], "name:ike") == 0);
+    assert(strcmp(thiz->tokens[3], "sex:male") == 0);
+    free_tokens(thiz);
+
+    char *test3 = "";
+    thiz = init_tokens(test3, '#');
+    assert(thiz->size == 0);
+    free_tokens(thiz);
+
+    char *test4 = "     ";
+    thiz = init_tokens(test4, ' ');
+    assert(thiz->size == 0);
+    free_tokens(thiz);
 }
 
 void testcase_for_get_files_by_ext(void){
@@ -728,8 +737,9 @@ void test_suite(void){
         printf("Completed Successfully\n");
 }
 
-int main(int argc, char *argv[]){
-		test_suite();
-        return 1;
+int main(int argc, char *argv[])
+{
+    test_suite();
+    return 0;
 }
 #endif
