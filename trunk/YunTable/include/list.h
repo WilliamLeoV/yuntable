@@ -20,18 +20,16 @@
 #include "global.h"
 
 /** structs declaration **/
-typedef struct _ListNode{
-        struct _ListNode *next;
-        struct _ListNode *prev;
-        void* data;
-}ListNode;
+typedef struct _ListNode ListNode;
 
-typedef struct _List{
-    ListNode* cursor;
-    ListNode* first;
-    ListNode* last;
-    unsigned long node_num;
-} List;
+typedef struct _List List;
+
+enum {
+    LIST_ITER_CONTINUE, /* continue to process next element */
+    LIST_ITER_BREAK,    /* stop the iteration */
+};
+typedef int (*list_iter_func_t)(void* data, void* argv);
+void list_iter(List* list, list_iter_func_t func, void* argv);
 
 /** public method declaration **/
 public List* list_create(void);
@@ -68,12 +66,4 @@ public List* array_to_list(void** array, int size);
 
 public void** list_to_array(List* thiz);
 
-#define for_each_list_node(node, thiz)                 \
-    for (node = thiz->first; node; node = node->next)
-
-
-#define for_each_list_node_safe(node, next_node, thiz)              \
-    for (node = thiz->first, next_node = node ? node->next: NULL;   \
-        node;                                                       \
-        node = next_node, next_node = node ? node->next: NULL)
 #endif /* LIST_H_ */

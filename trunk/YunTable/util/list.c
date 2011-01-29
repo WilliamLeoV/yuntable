@@ -18,6 +18,29 @@
 #include "list.h"
 
 
+struct _ListNode{
+    struct _ListNode *next;
+    struct _ListNode *prev;
+    void* data;
+};
+
+struct _List{
+    ListNode* cursor;
+    ListNode* first;
+    ListNode* last;
+    unsigned long node_num;
+};
+
+
+#define for_each_list_node(node, thiz)                 \
+    for (node = thiz->first; node; node = node->next)
+
+
+#define for_each_list_node_safe(node, next_node, thiz)              \
+    for (node = thiz->first, next_node = node ? node->next: NULL;   \
+        node;                                                       \
+        node = next_node, next_node = node ? node->next: NULL)
+
 /** methods body **/
 private ListNode* list_next_node(List* thiz){
 	//if the list is empty or reach the end
@@ -195,6 +218,17 @@ public int list_remove(List* thiz, void* data, void (*free_object)(void *object)
     }
     list_rewind(thiz);
     return ret;
+}
+
+void list_iter(List* list, list_iter_func_t func, void* argv)
+{
+    ListNode *node, *next_node;
+
+    for_each_list_node_safe(node, next_node, list) {
+        if (func(node->data, argv) == LIST_ITER_BREAK) {
+            break;
+        }
+    }
 }
 
 

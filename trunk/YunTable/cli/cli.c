@@ -64,7 +64,15 @@ typedef struct cli_action_func_s {
 
 CliCache* cliCacheInst = NULL;
 
-private char* get_table_name(char *string){
+/**
+ * 从命令行获取table的名称
+ *
+ * @param string  table:name格式的字符串
+ *
+ * @return char* 返回的名称，调用者不使用后需要free该name
+ */
+private char* get_table_name(char *string)
+{
         char *table_name = NULL;
         Tokens *fenn_tokens = init_tokens(string, ':');
         if(fenn_tokens->size == 2 && match(fenn_tokens->tokens[0], TABLE_KEY)){
@@ -96,37 +104,51 @@ private TableInfo* get_table_info_from_master(char* master_conn, char* table_nam
         return tableInfo;
 }
 
-private void update_table_info_list(CliCache* cliCache){
-        ListNode *node;
-        List* oldTableInfoList = cliCache->tableInfoList;
-        List* newTableInfoList = list_create();
-        TableInfo* oldTableInfo;
-        TableInfo* newTableInfo;
-        for_each_list_node(node, oldTableInfoList) {
-            oldTableInfo = node->data;
-            newTableInfo = get_table_info_from_master(cliCache->master_conn, oldTableInfo->table_name);
-            if(newTableInfo == NULL) {
-                continue;
-            }
-            list_append(newTableInfoList, newTableInfo);
-        }
-        cliCache->tableInfoList = newTableInfoList;
-        list_destory(oldTableInfoList, destory_table_info);
+struct table_info_iter_arg_s {
+    List *table_list;
+    char *master_conn;
+};
+
+static int update_table_info_iter(void *oldTableInfo, void *argv)
+{
+    struct table_info_iter_arg_s *iter = argv;
+    TableInfo* tableInfo;
+
+    tableInfo = get_table_info_from_master(iter->master_conn,
+        ((TableInfo* )oldTableInfo)->table_name);
+
+    if(tableInfo != NULL) {
+        list_append(iter->table_list, tableInfo);
+    }
+    return LIST_ITER_CONTINUE;
+}
+
+private void update_table_info_list(CliCache* cliCache)
+{
+    struct table_info_iter_arg_s iter;
+    List* newTableInfoList = list_create();
+    iter.master_conn = cliCache->master_conn;
+    iter.table_list = newTableInfoList;
+    list_iter(cliCache->tableInfoList, update_table_info_iter, &iter);
+    list_destory(cliCache->tableInfoList, destory_table_info);
+    cliCache->tableInfoList = newTableInfoList;
 }
 
 /** if the table info can't not find the tableInfoList, the method will contact master and get new, also will update the local cache **/
 private TableInfo* search_and_update_table_info(CliCache* cliCache, char* table_name)
 {
-        TableInfo *tableInfo = get_table_info(cliCache->tableInfoList, table_name);
-        if(tableInfo == NULL){
-        	if(cliCache->master_conn == NULL){
-        		printf("%s.\n", err_to_str(ERR_NO_MASTER));
-        	}else{
-        		tableInfo = get_table_info_from_master(cliCache->master_conn, table_name);
-        		if(tableInfo != NULL) list_append(cliCache->tableInfoList, tableInfo);
-        	}
+    TableInfo *tableInfo = get_table_info(cliCache->tableInfoList, table_name);
+    if(tableInfo == NULL){
+        if(cliCache->master_conn == NULL){
+            printf("%s.\n", err_to_str(ERR_NO_MASTER));
+        } else {
+            tableInfo = get_table_info_from_master(cliCache->master_conn, table_name);
+            if(tableInfo != NULL) {
+                list_append(cliCache->tableInfoList, tableInfo);
+            }
         }
-        return tableInfo;
+    }
+    return tableInfo;
 }
 
 private boolean create_new_table(char* master_conn, char* table_name){
@@ -230,9 +252,9 @@ public int add(Tokens* space_tokens)
 							 ret = ERR_EXIST;
 						}else{
 							if(create_new_table(cliCacheInst->master_conn, new_table_name)){
-							ret = OK;
-							//Update the table info
-							search_and_update_table_info(cliCacheInst, new_table_name);
+                                ret = OK;
+                                //Update the table info
+                                search_and_update_table_info(cliCacheInst, new_table_name);
 							}else{
 								ret = ERR_CLUSTER_FULL;
 							}
@@ -279,13 +301,14 @@ private int batch_put_data_to_table(CliCache* cliCache, TableInfo* tableInfo, Re
 		return ret;
 }
 
-/** sample cmd:put table:people row:me name:"ike" sex:"male" homeaddress:"sh" **/
+/** sample cmd: put table:people row:me name:"ike" sex:"male" homeaddress:"sh" **/
 public int put(Tokens* space_tokens){
 		char *table_name = get_table_name(space_tokens->tokens[1]);
 		if (table_name == NULL) {
 			 return ERR_NO_TABLE_NAME;
 		}
 		TableInfo *tableInfo = search_and_update_table_info(cliCacheInst, table_name);
+        free2(table_name);
 		if(tableInfo == NULL){
 			return ERR_TABLE_NOT_CREATE;
 		}
@@ -370,6 +393,7 @@ public int get(Tokens* space_tokens){
 			return ERR_NO_TABLE_NAME;
         }
         TableInfo *tableInfo = search_and_update_table_info(cliCacheInst, table_name);
+        free2(table_name);
         if (tableInfo == NULL) {
 			return ERR_TABLE_NOT_CREATE;
         }
@@ -400,76 +424,78 @@ public int get(Tokens* space_tokens){
 }
 
 private void show_table_metadata(TableInfo* tableInfo){
-		printf("The Meta Info about the Table:%s\n", tableInfo->table_name);
-		int i=0, rq_size=list_size(tableInfo->replicaQueueList);
-		printf("The Number of replica queue:%d\n", rq_size);
+    int i;
+    int rq_size=list_size(tableInfo->replicaQueueList);
+    printf("The Meta Info about the Table:%s\n", tableInfo->table_name);
+    printf("The Number of replica queue:%d\n", rq_size);
 
-		//Iterating the Replica Queues
-		for(i=0; i<rq_size; i++){
-			printf("The Meta Info from Replica Queue %d.\n", i);
-			printf("\n");
-			ReplicaQueue* replicaQueue = list_get(tableInfo->replicaQueueList, i);
-			int k=0, tt_size=list_size(replicaQueue->tabletInfoList);
+    //Iterating the Replica Queues
+    for (i=0; i<rq_size; i++) {
+        printf("The Meta Info from Replica Queue %d.\n", i);
+        printf("\n");
+        ReplicaQueue* replicaQueue = list_get(tableInfo->replicaQueueList, i);
+        int k=0, tt_size=list_size(replicaQueue->tabletInfoList);
 
-			//Iterating the Tablet Infos
-			for(k=0; k<tt_size; k++){
-				TabletInfo* tabletInfo = list_get(replicaQueue->tabletInfoList, k);
-				printf("The Meta Info from Tablet %d at Region %s.\n", k, tabletInfo->regionInfo->conn);
-				List* params = generate_charactor_params(1, tableInfo->table_name);
-				RPCRequest* rpcRequest = create_rpc_request(GET_METADATA_REGION_CMD, params);
-			    RPCResponse* rpcResponse = connect_conn(tabletInfo->regionInfo->conn, rpcRequest);
-			    int status_code = get_status_code(rpcResponse);
-				if(status_code == SUCCESS){
-					char* result = get_result(rpcResponse);
-					printf("%s", result);
-				}else{
-					printf("Sad News! The Region node has some problem:%s.\n", get_error_message(status_code));
-				}
-				destory_rpc_request(rpcRequest);
-				destory_rpc_response(rpcResponse);
-			}
-		}
+        //Iterating the Tablet Infos
+        for (k=0; k<tt_size; k++) {
+            TabletInfo* tabletInfo = list_get(replicaQueue->tabletInfoList, k);
+            printf("The Meta Info from Tablet %d at Region %s.\n", k, tabletInfo->regionInfo->conn);
+            List* params = generate_charactor_params(1, tableInfo->table_name);
+            RPCRequest* rpcRequest = create_rpc_request(GET_METADATA_REGION_CMD, params);
+            RPCResponse* rpcResponse = connect_conn(tabletInfo->regionInfo->conn, rpcRequest);
+            int status_code = get_status_code(rpcResponse);
+            if (status_code == SUCCESS) {
+                char* result = get_result(rpcResponse);
+                printf("%s", result);
+            } else {
+                printf("Sad News! The Region node has some problem:%s.\n", get_error_message(status_code));
+            }
+            destory_rpc_request(rpcRequest);
+            destory_rpc_response(rpcResponse);
+        }
+    }
 }
 
 private void show_master_metadata(CliCache* cliCache){
-		if(cliCache->master_conn == NULL){
-			printf("%s.\n", err_to_str(ERR_NO_MASTER));
-		}else{
-			RPCRequest* rpcRequest = create_rpc_request(GET_METADATA_MASTER_CMD, NULL);
-			RPCResponse* rpcResponse = connect_conn(cliCache->master_conn, rpcRequest);
-			int status_code = get_status_code(rpcResponse);
-			if(status_code == SUCCESS || get_result_length(rpcResponse) > 0){
-				char* result = get_result(rpcResponse);
-				printf("%s", result);
-			}else{
-				printf("Sad News! The Master node has problem:%s.\n", get_error_message(status_code));
-			}
-			destory_rpc_request(rpcRequest);
-			destory_rpc_response(rpcResponse);
-		}
+    if(cliCache->master_conn == NULL){
+        printf("%s.\n", err_to_str(ERR_NO_MASTER));
+    } else {
+        RPCRequest* rpcRequest = create_rpc_request(GET_METADATA_MASTER_CMD, NULL);
+        RPCResponse* rpcResponse = connect_conn(cliCache->master_conn, rpcRequest);
+        int status_code = get_status_code(rpcResponse);
+        if(status_code == SUCCESS || get_result_length(rpcResponse) > 0){
+            char* result = get_result(rpcResponse);
+            printf("%s", result);
+        }else{
+            printf("Sad News! The Master node has problem:%s.\n", get_error_message(status_code));
+        }
+        destory_rpc_request(rpcRequest);
+        destory_rpc_response(rpcResponse);
+    }
 }
 
 /** sample cmd:
- * 	 1) show table:people // which retrieve the table's metadata
+ *   1) show table:people // which retrieve the table's metadata
  *   2) show master  //which retrieve the master's metadata
  * **/
 public int show(Tokens* space_tokens){
-		//Go to Show Master procedure or Show Table
-        int ret = OK;
-		if(match(space_tokens->tokens[1], MASTER_KEY)){
-			show_master_metadata(cliCacheInst);
-		}else{
-			char *table_name = get_table_name(space_tokens->tokens[1]);
-			if(table_name == NULL) {
-				return ERR_CMD_NOT_COMPLETE;
-			}
-			TableInfo *tableInfo = search_and_update_table_info(cliCacheInst, table_name);
-			if (tableInfo == NULL) {
-				return ERR_TABLE_NOT_CREATE;
-			}
-			show_table_metadata(tableInfo);
-		}
-		return ret;
+    //Go to Show Master procedure or Show Table
+    int ret = OK;
+    if(match(space_tokens->tokens[1], MASTER_KEY)){
+        show_master_metadata(cliCacheInst);
+    } else {
+        char *table_name = get_table_name(space_tokens->tokens[1]);
+        if (table_name == NULL) {
+            return ERR_CMD_NOT_COMPLETE;
+        }
+        TableInfo *tableInfo = search_and_update_table_info(cliCacheInst, table_name);
+        free2(table_name);
+        if (tableInfo == NULL) {
+            return ERR_TABLE_NOT_CREATE;
+        }
+        show_table_metadata(tableInfo);
+    }
+    return ret;
 }
 
 
@@ -484,6 +510,7 @@ public int del(Tokens* space_tokens){
 			return ERR_NO_TABLE_NAME;
 		}
 		TableInfo *tableInfo = search_and_update_table_info(cliCacheInst, table_name);
+        free2(table_name);
 		if (tableInfo == NULL) {
 			return ERR_TABLE_NOT_CREATE;
 		}
