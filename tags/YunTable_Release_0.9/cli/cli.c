@@ -185,7 +185,7 @@ public char* add(Tokens* space_tokens){
 			if(match(fenn_tokens->tokens[0], MASTER_KEY)){
 				char* new_master_conn = m_cats(3, fenn_tokens->tokens[1], ":", fenn_tokens->tokens[2]);
 				if(check_node_validity(new_master_conn, MASTER_KEY)){
-					cliCacheInst->master_conn = new_master_conn;
+					cliCacheInst->master_conn = m_cpy(new_master_conn);
 					flush_key_value(cliCacheInst->conf_path, CONF_MASTER_CONN_KEY, cliCacheInst->master_conn);
 					msg = SUCC_MSG_COMPLETED;
 				}else{
