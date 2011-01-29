@@ -238,10 +238,10 @@ public char* m_tablet_info_to_string(TabletInfo* tabletInfo){
         char* region_info_string = m_region_info_to_string(tabletInfo->regionInfo);
         buf_cat(buf, region_info_string, strlen(region_info_string));
         buf_cat(buf, STRING_SEPARATOR_STRING, strlen(STRING_SEPARATOR_STRING));
-        char* begin_timestamp_string = m_itos(tabletInfo->begin_timestamp);
+        char* begin_timestamp_string = m_lltos(tabletInfo->begin_timestamp);
         buf_cat(buf, begin_timestamp_string, strlen(begin_timestamp_string));
         buf_cat(buf, STRING_SEPARATOR_STRING, strlen(STRING_SEPARATOR_STRING));
-        char* end_timestamp_string = m_itos(tabletInfo->end_timestamp);
+        char* end_timestamp_string = m_lltos(tabletInfo->end_timestamp);
         buf_cat(buf, end_timestamp_string, strlen(end_timestamp_string));
         frees(3, region_info_string, begin_timestamp_string, end_timestamp_string);
         char *result = m_get_buf_string(buf);
