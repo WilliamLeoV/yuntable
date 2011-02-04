@@ -25,8 +25,8 @@
  * **/
 
 /** The handler for out of memory situation **/
-private void oom(){
-		logg(EMERG, "The Memory Allocation has failed!!!!");
+private void oom(size_t size){
+		logg(EMERG, "The Memory Allocation has failed by allocating %d byte!!!!", size);
 	    sleep(1);
 	    abort();
 }
@@ -44,7 +44,7 @@ public void* mallocs(size_t size){
 public void* malloc2(size_t size){
         void* ptr = malloc(size);
         if(ptr == NULL) {
-		    oom();
+		    oom(size);
         }
 	    return ptr;
 }
@@ -52,7 +52,7 @@ public void* malloc2(size_t size){
 public void* realloc2(void* ptr, size_t size){
 		void *newptr = realloc(ptr, size);
 		if (newptr == NULL){
-			oom();
+			oom(size);
 		}
 		return newptr;
 }
