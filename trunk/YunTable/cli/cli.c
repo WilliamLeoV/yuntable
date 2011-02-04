@@ -28,13 +28,13 @@
 
 /***
  * The Cli is YunTable Console that used mainly for experimenting and testing the YunTable,
- * and not for performance intensive purpose, and add a slient mode for client automate testing.
+ * and not for performance intensive purpose, and add a silent mode for client automate testing.
  **/
 
 #define CONF_MASTER_CONN_KEY "master"
 
 /** cli related constants **/
-#define CMD_OPTION_KEY "-cmd" /** used in the slient mode **/
+#define CMD_OPTION_KEY "-cmd" /** used in the silent mode **/
 #define ADD_KEY "add"
 #define GET_KEY "get"
 #define SHOW_KEY "show"
@@ -671,7 +671,7 @@ public int start_cli_daemon()
     return ret;
 }
 
-public int slient_mode(int argc, char** argv)
+public int silent_mode(int argc, char** argv)
 {
     int ret = 0;
     if(argc == 2){
@@ -692,7 +692,7 @@ public int slient_mode(int argc, char** argv)
  * sample cmd:
  *     1. Starting cli ./yuncli
  *     2. Starting cli with conf file ./yuncli -conf conf/cli.conf
- *     3. Slient mode for testing ./yuncli -cmd add master:127.0.0.1:8301
+ *     3. Silent mode for testing ./yuncli -cmd add master:127.0.0.1:8301
  *
  * Return: on success, return 0; others, return error code;
  */
@@ -705,7 +705,7 @@ int main(int argc, char **argv)
     char *conf_path = get_conf_path_from_argv(argc, argv, DEFAULT_CLI_CONF_PATH);
     load_cli_cache(conf_path);
     if (argc >= 2 && match(argv[1], CMD_OPTION_KEY)) {
-        ret = slient_mode(argc, argv);
+        ret = silent_mode(argc, argv);
     } else {
         ret = start_cli_daemon();
     }
