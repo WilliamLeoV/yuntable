@@ -60,6 +60,7 @@ typedef int (*cli_cmd_func_t)(Tokens* space_tokens);
 typedef struct cli_action_func_s {
     cli_cmd_func_t func;
     char *action;
+    int print_success_log;
 } cli_action_func_t;
 
 CliCache* cliCacheInst = NULL;
@@ -574,22 +575,22 @@ public int help(Tokens* space_tokens){
 
 
 cli_action_func_t cli_action_func[] = {
-    {add, ADD_KEY},
-    {put, PUT_KEY},
-    {get, GET_KEY},
-    {del, DEL_KEY},
-    {show, SHOW_KEY},
-    {help, HELP_KEY},
-    {NULL, NULL},
+    {add, ADD_KEY, true},
+    {put, PUT_KEY, true},
+    {get, GET_KEY, false},
+    {del, DEL_KEY, true},
+    {show, SHOW_KEY, false},
+    {help, HELP_KEY, false},
+    {NULL, NULL, false},
 };
 
-static cli_cmd_func_t cli_get_cmd(const char *action)
+static cli_action_func_t* cli_get_cmd(const char *action)
 {
     int i;
 
     for (i = 0; cli_action_func[i].func != NULL; i++) {
         if (match(cli_action_func[i].action, action)) {
-            return cli_action_func[i].func;
+            return &cli_action_func[i];
         }
     }
     return NULL;
@@ -607,11 +608,14 @@ public int process(char *cmd)
     if(space_tokens->size < 1) {
         return ERR_NULL_STRING;
     }
-    cli_cmd_func_t func = cli_get_cmd(space_tokens->tokens[0]);
-    if (func == NULL) {
+    cli_action_func_t *action = cli_get_cmd(space_tokens->tokens[0]);
+    if (action == NULL) {
         ret = ERR_WRONG_ACTION;
     } else {
-        ret = func(space_tokens);
+        ret = action->func(space_tokens);
+        if (ret == 0 && action->print_success_log) {
+            printf("The Action has been completed successfully.\r\n");
+        }
     }
     free_tokens(space_tokens);
     return ret;
