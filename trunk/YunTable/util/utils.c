@@ -56,22 +56,6 @@ char *err_to_str(int err)
     return err_str[err];
 }
 
-char* get_version(int version_value){
-	char* tmp = m_itos(version_value);
-	char buf[20];
-	memset(buf,0,sizeof(buf));
-	char* version_str = NULL;
-	if(version_value < 10){
-		version_str = m_cats(2,"0.",tmp);
-	}else{
-		sprintf(buf,"%c",tmp[0]);
-		char* new_value = tmp + 1;
-		version_str = m_cats(3,buf,".",new_value);
-	}
-	free2(tmp);
-	return version_str;
-}
-
 /** the safe implmenetaion of strcat **/
 public char* move_pointer(char* pointer, int div){
 		char* temp = pointer;

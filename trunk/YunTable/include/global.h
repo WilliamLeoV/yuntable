@@ -122,14 +122,6 @@ char *err_to_str(int err);
 /*
  * define for Version
  */
-enum Version{
-	VERSION_0 = 0x0,
-	VERSION_1 = 0x8,/** version 0.8 **/
-	VERSION_2 = 0x9,/** version 0.9 **/
-	VERSION_3 = 0xa,/** version 1.0 **/
-	VERSION_CUR = VERSION_3
-};
-
-char* get_version(int version_value);
+#define VERSION "1.0Dev"
 
 #endif /* GLOBAL_H_ */
