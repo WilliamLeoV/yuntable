@@ -630,7 +630,6 @@ public void silent_mode(int argc, char** argv){
  *	   3. Silent mode for testing ./yuncli -cmd add master:127.0.0.1:8301
  */
 int main(int argc, char **argv){
-		printf("------------------ Welcome to YunTable [%s] RC ----------------\n",get_version(VERSION_CUR));
 		//Disable the logging, since the majority of err msg for cli are just printed
 		setup_logging(DISABLE, "");
 		//Init the cli cache
