@@ -60,6 +60,7 @@ public void logg(int level, const char *fmt, ...){
 		vfprintf(fp, fmt, ap);
 		//Write to the stdout
 		printf("[%d] %s %c ",(int)getpid(),buf,c[level]);
+    va_start(ap, fmt);
 		vprintf(fmt, ap);
 		printf("\n");
 		fprintf(fp, LINE_SEPARATOR_STRING);
