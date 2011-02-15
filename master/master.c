@@ -499,6 +499,7 @@ public void start_server_master(){
  * sample cmd: ./startMaster -conf conf/master.conf
  */
 int main(int argc, char *argv[]){
+		printf("------------------ Welcome to YunTable [%s] RC ----------------\n",get_version(VERSION_CUR));
 		setup_logging(INFO, MASTER_LOG_FILE);
 		char *conf_path = get_conf_path_from_argv(argc, argv, DEFAULT_MASTER_CONF_PATH);
 		load_master(conf_path);
