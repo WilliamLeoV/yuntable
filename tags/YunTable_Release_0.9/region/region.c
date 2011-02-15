@@ -453,7 +453,7 @@ public void start_server_region(){
  */
 int main(int argc, char *argv[]){
 		setup_logging(INFO, REGION_LOG_FILE);
-		logg(INFO,"------------------ Welcome to YunTable [%s] ----------------\n",VERSION);
+		logg(INFO,"------- Welcome to YunTable [%s] -------\n",VERSION);
   		char *conf_path = get_conf_path_from_argv(argc, argv, DEFAULT_REGION_CONF_PATH);
 		load_local_region(conf_path);
 		start_server_region();

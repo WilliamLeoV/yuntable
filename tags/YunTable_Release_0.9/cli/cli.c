@@ -582,6 +582,7 @@ private char *cli_normalize_cmd(char *cmd){
 public void start_cli_daemon(){
 		//Step 1. Show the master connection info
 		char *cli_str;
+		printf("Welcome to YunTable\n");
         if(cliCacheInst->master_conn == NULL) {
         	printf("No Master Connection has been setup\n");
         } else {
