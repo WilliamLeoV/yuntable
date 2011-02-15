@@ -20,6 +20,23 @@
 #include "log.h"
 #include "buf.h"
 
+
+char* get_version(int version_value){
+	char* tmp = m_itos(version_value);
+	char buf[20];
+	memset(buf,0,sizeof(buf));
+	char* version_str = NULL;
+	if(version_value < 10){
+		version_str = m_cats(2,"0.",tmp);
+	}else{
+		sprintf(buf,"%c",tmp[0]);
+		char* new_value = tmp + 1;
+		version_str = m_cats(3,buf,".",new_value);
+	}
+	free2(tmp);
+	return version_str;
+}
+
 /**   string normal operation part  **/
 
 /** the safe implmenetaion of strcat **/
