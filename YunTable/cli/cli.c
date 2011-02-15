@@ -640,7 +640,6 @@ public int start_cli_daemon()
     int ret = 0;
     char *cli_str;
     //Step 1. Show the master connection info
-    printf("Welcome to YunTable\n");
     if(cliCacheInst->master_conn == NULL) {
         printf("No Master Connection has been setup\n");
     } else {
@@ -702,6 +701,7 @@ public int silent_mode(int argc, char** argv)
  */
 int main(int argc, char **argv)
 {
+	printf("------------------ Welcome to YunTable [%s] Dev ----------------\n",get_version(VERSION_CUR));
     int ret = 0;
     //Disable the logging, since the majority of err msg for cli are just printed
     setup_logging(DISABLE, "");
