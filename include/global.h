@@ -42,6 +42,9 @@
  * The Global Header file contains all meta data that will be used throughout the project.
  ***/
 
+/** version part **/
+#define VERSION "0.9RC"
+
 /**  core part   **/
 
 #define	public		/* PUBLIC is the opposite of PRIVATE */
@@ -114,10 +117,5 @@ typedef unsigned short boolean;
 #define REGION_KEY "region"
 
 #define MASTER_KEY "master"
-
-/*
- * define for Version
- */
-#define VERSION "0.9RC"
 
 #endif /* GLOBAL_H_ */
