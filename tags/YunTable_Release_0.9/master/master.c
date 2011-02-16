@@ -380,7 +380,7 @@ public char* get_metadata_master(){
 		for(j=0; j<table_size; j++){
 			TableInfo* tableInfo = list_get(masterInst->tableInfoList, j);
 			char* table_name_line = mallocs(LINE_BUF_SIZE);
-			sprintf(table_name_line, " %s.", tableInfo->table_name);
+			sprintf(table_name_line, " %s ", tableInfo->table_name);
 			buf_cat(buf, table_name_line, strlen(table_name_line));
 			free2(table_name_line);
 		}
@@ -500,7 +500,7 @@ public void start_server_master(){
  */
 int main(int argc, char *argv[]){
 		setup_logging(INFO, MASTER_LOG_FILE);
-		logg(INFO,"------- Welcome to YunTable [%s] -------\n",VERSION);
+		logg(INFO,"The YunTable Version is %s.",VERSION);
 		char *conf_path = get_conf_path_from_argv(argc, argv, DEFAULT_MASTER_CONF_PATH);
 		load_master(conf_path);
 		start_server_master();
