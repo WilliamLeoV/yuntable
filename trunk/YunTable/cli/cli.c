@@ -639,7 +639,7 @@ public int start_cli_daemon()
 {
     int ret = 0;
     char *cli_str;
-	printf("Welcome to YunTable\n");
+	printf("Welcome to YunTable %s\n", VERSION);
     //Step 1. Show the master connection info
     if(cliCacheInst->master_conn == NULL) {
         printf("No Master Connection has been setup\n");
