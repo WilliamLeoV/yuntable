@@ -16,10 +16,10 @@
 
 #include "utils.h"
 #include "list.h"
-#include "yfile.h"
-#include "memstore.h"
-#include "wal.h"
-#include "tablet.h"
+#include "region/yfile.h"
+#include "region/memstore.h"
+#include "region/wal.h"
+#include "region/tablet.h"
 #include "malloc2.h"
 #include "log.h"
 

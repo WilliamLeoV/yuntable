@@ -17,7 +17,7 @@ region:
 	$(CC) $(CFLAGS) ${COMMON_SRC} ${REGION_SRC} -o startRegion
 	
 yfileTest:
-	$(CC) $(CFLAGS) ${COMMON_SRC} region/yfile.c -D YFILE_TEST -o yfileTest
+	$(CC) $(CFLAGS) ${COMMON_SRC} region/src/yfile.c -D YFILE_TEST -o yfileTest
 	
 confTest:
 	$(CC) $(CFLAGS)	${COMMON_SRC} -D CONF_TEST -o confTest 

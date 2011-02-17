@@ -1,3 +1,5 @@
+#!/bin/bash
+
 echo "Starting the testcase script for YunTable"
 
 echo "Step 1, Unit Test"
