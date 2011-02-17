@@ -509,7 +509,7 @@ public void start_server_master(){
  */
 int main(int argc, char *argv[]){
 		setup_logging(INFO, MASTER_LOG_FILE);
-		logg(INFO,"------- Welcome to YunTable [%s] -------\n",VERSION);
+		logg(INFO,"The YunTable Version is %s.",VERSION);
 		char *conf_path = get_conf_path_from_argv(argc, argv, DEFAULT_MASTER_CONF_PATH);
 		load_master(conf_path);
 		start_server_master();

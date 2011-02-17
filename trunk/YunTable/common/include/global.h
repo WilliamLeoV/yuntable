@@ -43,6 +43,9 @@
  * The Global Header file contains all meta data that will be used throughout the project.
  ***/
 
+/** version part **/
+#define VERSION "1.0Dev"
+
 /**  core part   **/
 
 #define	public		/* PUBLIC is the opposite of PRIVATE */
@@ -118,10 +121,5 @@ typedef unsigned short boolean;
 
 
 char *err_to_str(int err);
-
-/*
- * define for Version
- */
-#define VERSION "1.0Dev"
 
 #endif /* GLOBAL_H_ */
