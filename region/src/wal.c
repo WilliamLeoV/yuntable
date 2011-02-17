@@ -17,7 +17,7 @@
 #include "utils.h"
 #include "list.h"
 #include "item.h"
-#include "wal.h"
+#include "region/wal.h"
 #include "malloc2.h"
 #include "log.h"
 

@@ -19,7 +19,7 @@
 #include "item.h"
 #include "utils.h"
 #include "master/master.h"
-#include "region.h"
+#include "region/region.h"
 #include "rpc.h"
 #include "conf.h"
 #include "malloc2.h"
