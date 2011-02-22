@@ -55,6 +55,8 @@ public char* get_error_message(int status_code){
 			return ERROR_NO_PARAM_MSG;
 		}else if(status_code == ERROR_TABLET_NOT_EXIST){
 			return ERROR_TABLET_NOT_EXIST_MSG;
+		}else if(status_code == ERROR_ONLY_ALLOWS_ONE_REGION){
+			return ERROR_ONLY_ALLOWS_ONE_REGION_MSG;
 		}else{
 			return UNDEFINED_STATUS_CODE_MSG;
 		}
