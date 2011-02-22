@@ -127,7 +127,7 @@ private boolean create_new_table(char* master_conn, char* table_name){
 	    if(status_code == SUCCESS){
 	    	result = stob(get_result(rpcResponse));
 	    }else{
-	    	printf("Sad News! The Master node has problem:%s\n", get_error_message(status_code));
+	    	printf("Sad News! The Master node has problem: %s\n", get_error_message(status_code));
 	    }
 	    destory_rpc_request(rpcRequest);
 	    destory_rpc_response(rpcResponse);
@@ -143,7 +143,7 @@ private boolean add_new_region(char* master_conn, char* region_conn){
 	    if(status_code == SUCCESS || get_result_length(rpcResponse) > 0){
 	    	result = stob(get_result(rpcResponse));
 	    }else{
-	    	printf("Sad News! The Master node has problem:%s\n", get_error_message(status_code));
+	    	printf("Sad News! The Master node has problem: %s\n", get_error_message(status_code));
 	    }
 		destory_rpc_request(rpcRequest);
 		destory_rpc_response(rpcResponse);
@@ -162,7 +162,7 @@ private boolean check_problem_region(char* problem_region_conn){
 	    if(status_code == SUCCESS){
 	    	return stob(get_result(rpcResponse));
 		}else{
-			printf("Sad News! The Master node has problem:%s!\n", get_error_message(status_code));
+			printf("Sad News! The Master node has problem: %s!\n", get_error_message(status_code));
 		}
 		destory_rpc_request(rpcRequest);
 		destory_rpc_response(rpcResponse);

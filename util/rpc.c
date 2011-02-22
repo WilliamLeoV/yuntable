@@ -227,7 +227,7 @@ public boolean check_node_validity(char* conn, char* type){
 				result = true;
 			}
 		}else{
-			printf("Have some problem when check node %s validity:%s!\n", conn,  get_error_message(status_code));
+			printf("Have some problem when check node %s validity: %s!\n", conn,  get_error_message(status_code));
 		}
 		destory_rpc_request(rpcRequest);
 		destory_rpc_response(rpcResponse);
@@ -318,7 +318,7 @@ private void start_daemon(int listenfd, RPCResponse* (*handler_request)(char *cm
 			RPCRequest* rpcRequest = byte_to_rpc_request(buf);
 			RPCResponse* rpcResponse = NULL;
 			if(rpcRequest->cmd_name != NULL){
-				logg(DEBUG, "The request is cmd:%s.", rpcRequest->cmd_name);
+				logg(DEBUG, "The request is cmd: %s.", rpcRequest->cmd_name);
 				rpcResponse = handler_request(rpcRequest->cmd_name, rpcRequest->params);
 			}else{
 				logg(ISSUE, "The request has not included necessary cmd.");
