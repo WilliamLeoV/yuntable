@@ -28,6 +28,7 @@
 #define ERROR_WRONG_CMD 4 //The RPC Request can not handle this kind of cmd
 #define ERROR_NO_PARAM 5 //The RPC Request has not included needed parameter
 #define ERROR_TABLET_NOT_EXIST 6 //The Region Node don't have the target tablet
+#define ERROR_ONLY_ALLOWS_ONE_REGION 7 //In the version 0.9, only allows has one region node
 //#define IN_PROGRESS //Which means the cmd is still processing, may has use in the future
 
 #define CONN_FAIL_MSG "connection Failed"
@@ -36,6 +37,7 @@
 #define ERROR_WRONG_CMD_MSG "this request can not be handled by the remote node"
 #define ERROR_NO_PARAM_MSG "not enough parameters included in the request"
 #define ERROR_TABLET_NOT_EXIST_MSG "the Region Node don't have the the tablet belong to this table"
+#define ERROR_ONLY_ALLOWS_ONE_REGION_MSG "In the version 0.9, the master only allows has one region node"
 
 #define UNDEFINED_STATUS_CODE_MSG "the Status Code has not been defined"
 

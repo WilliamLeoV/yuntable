@@ -451,6 +451,9 @@ public RPCResponse* handler_master_request(char *cmd, List* params){
 			char* region_conn = get_param(params, 0);
 			if(region_conn == NULL){
 				rpcResponse = create_rpc_response(ERROR_NO_PARAM, 0, NULL);
+			}else if(list_size(masterInst->regionInfoList) > 0){
+				logg(ISSUE, "The client is attempting adding one more region node.");
+				rpcResponse = create_rpc_response(ERROR_ONLY_ALLOWS_ONE_REGION, 0, NULL);
 			}else{
 				boolean bool = add_new_region_master(region_conn);
 				rpcResponse = create_rpc_response(SUCCESS, strlen(bool_to_str(bool)), m_cpy(bool_to_str(bool)));
@@ -501,6 +504,8 @@ public void start_server_master(){
 int main(int argc, char *argv[]){
 		setup_logging(INFO, MASTER_LOG_FILE);
 		logg(INFO,"The YunTable Version is %s.",VERSION);
+		//0.9 master is only allow one region node
+		logg(INFO,"The 0.9 Version only allows adding one region node.");
 		char *conf_path = get_conf_path_from_argv(argc, argv, DEFAULT_MASTER_CONF_PATH);
 		load_master(conf_path);
 		start_server_master();

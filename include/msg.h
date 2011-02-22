@@ -34,7 +34,7 @@
 #define ERR_MSG_NO_MASTER "Please set up a master at first"
 #define ERR_MSG_CLUSTER_FULL "Can not get a new region for this table because the whole cluster is full."
 #define ERR_MSG_WRONG_MASTER "Either the inputted master is wrong or has some connection problem."
-#define ERR_MSG_WRONG_REGION "Either the inputted region is wrong, has some connection problem or already existed."
+#define ERR_MSG_WRONG_REGION "Either the inputted region is wrong, has some connection problem or already existed, and in the version 0.9, the master only allow has one region node."
 #define ERR_MSG_WRONG_ADD_CMD "The Add Command is not valid, for example, the table name contains space"
 
 /** Issue Messages **/
