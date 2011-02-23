@@ -91,7 +91,7 @@ public boolean between_keys(Key *firstKey, Key *lastKey, char *row_key);
 
 public ResultSet* found_items_by_row_key(int size, Item** items, char* row_key);
 
-public ResultSet* found_items_by_timestamp(int size, Item** items, int begin_timestamp, int end_timestamp);
+public ResultSet* found_items_by_timestamp(int size, Item** items, long long begin_timestamp, long long end_timestamp);
 
 public ResultSet *m_item_list_to_result_set(List* itemList);
 
