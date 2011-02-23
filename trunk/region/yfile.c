@@ -242,9 +242,12 @@ private void flush_item_list(IndexBlock *indexBlock, size_t begin_offset, Result
 			if(beign_timestamp == 0 || timestamp < beign_timestamp) beign_timestamp = timestamp;
 			if(end_timestamp == 0 || timestamp > end_timestamp) end_timestamp = timestamp;
 
+			//TODO may need to free this key, please check
 			lastKey = get_key(item);
+
 			size++;
 			//if the block size bigger than default size, also the next item not share the same row key with item
+			//TODO resultSet->items[i+1] may surpass the array range, please check
 			if(ftell(fp) > offset + DEFAULT_SIZE_OF_DATA_BLOCK
 					&& cmp_item_with_row_key(item,  get_row_key(get_key(resultSet->items[i+1]))) != 0){
 				append_index(indexBlock, offset, size, lastKey, beign_timestamp, end_timestamp);
