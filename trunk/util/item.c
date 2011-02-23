@@ -341,7 +341,7 @@ public ResultSet* found_items_by_row_key(int size, Item** items, char* row_key){
         return resultSet;
 }
 
-public ResultSet* found_items_by_timestamp(int size, Item** items, int begin_timestamp, int end_timestamp){
+public ResultSet* found_items_by_timestamp(int size, Item** items, long long begin_timestamp, long long end_timestamp){
         List* itemList = list_create();
         int i=0;
         for(i=0; i<size; i++){
