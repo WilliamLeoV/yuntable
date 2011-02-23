@@ -32,7 +32,7 @@
 #define DEFAULT_WAL_FILE_PATH "wal.log"
 
 #define REGION_FOLDER "."
-#define TIME_STAMP_DIV 60 * 60 //Used at sync job
+#define TIME_STAMP_DIV (60 * 60) //Used at sync job
 
 /** This struct will also be used at cli side**/
 typedef struct _Region{
