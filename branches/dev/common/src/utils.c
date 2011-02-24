@@ -319,7 +319,8 @@ public char* m_load_txt_file_to_memory(char *file_path){
 public void create_or_rewrite_file(char *file_name, char* content){
         FILE *fp = fopen(file_name, "w");
         if (fp == NULL) {
-        	logg(EMERG, "can not create this file %s.", file_name);
+        	logg(EMERG, "can not create this file %s, error is %s(%d).",
+                 file_name, strerror(errno), errno);
         	exit(-1);
         }
         if(content != NULL){

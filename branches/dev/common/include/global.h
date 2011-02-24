@@ -65,14 +65,14 @@ typedef unsigned short boolean;
 #define INDEFINITE -1 //Means the number is not sure
 
 /** Global Constants Part **/
-#define DEFAULT_CLI_CONF_PATH "conf/cli.conf"
+#define DEFAULT_CLI_CONF_PATH "config/cli.conf"
 
 #define DEFAULT_MASTER_PORT 8301
-#define DEFAULT_MASTER_CONF_PATH "conf/master.conf"
+#define DEFAULT_MASTER_CONF_PATH "config/master.conf"
 
 /** The port of region begins with 8302, and will be incremented if a new region instance added in this machine **/
 #define DEFAULT_LOCAL_REGION_PORT 8302
-#define DEFAULT_REGION_CONF_PATH "conf/region.conf"
+#define DEFAULT_REGION_CONF_PATH "config/region.conf"
 
 #define MASTER_LOG_FILE "master.log"
 #define REGION_LOG_FILE "region.log"

@@ -33,7 +33,18 @@ sh build.sh
 echo -e "\n"
 
 echo "Step 2-2, Set up yuncli"
+
+./startMaster &
+master_pid=$!
 sleep 2
+
+./startRegion &
+region_pid=$!
+sleep 2
+
+echo "master pid is "$master_pid
+echo "region pid is "$region_pid
+
 ./yuncli -cmd add master:127.0.0.1:8301
 echo ""
 ./yuncli -cmd add region:127.0.0.1:8302
@@ -57,5 +68,8 @@ echo ""
 ./yuncli -cmd del table:people row:me1 sex
 echo ""
 ./yuncli -cmd get table:people
+
+kill -9 $master_pid
+kill -9 $region_pid
 
 echo "All the testcases have been "
