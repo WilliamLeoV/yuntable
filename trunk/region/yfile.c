@@ -236,6 +236,11 @@ private void flush_item_list(IndexBlock *indexBlock, size_t begin_offset, Result
 				newBlock = false;
 				size = 0;
 			}
+			//If the item not validated, which will be ignored
+			if(!validate_item(item)){
+				continue;
+			}
+
 			flush_item(item, fp);
 			//change the timestamp;
 			long long timestamp = get_timestamp(item);
@@ -246,16 +251,17 @@ private void flush_item_list(IndexBlock *indexBlock, size_t begin_offset, Result
 			lastKey = get_key(item);
 
 			size++;
-			//if the block size bigger than default size, also the next item not share the same row key with item
-			//TODO resultSet->items[i+1] may surpass the array range, please check
-			if(ftell(fp) > offset + DEFAULT_SIZE_OF_DATA_BLOCK
+			//if the block size bigger than default size, also the next(but not last) item not share the same row key with item
+			if(ftell(fp) > offset + DEFAULT_SIZE_OF_DATA_BLOCK && resultSet->size != i+1
 					&& cmp_item_with_row_key(item,  get_row_key(get_key(resultSet->items[i+1]))) != 0){
 				append_index(indexBlock, offset, size, lastKey, beign_timestamp, end_timestamp);
 				newBlock = true;
 			}
 		}
 		//if list is not null, will append final index
-		if(lastKey != NULL) append_index(indexBlock, offset, size, lastKey, beign_timestamp, end_timestamp);
+		if(lastKey != NULL){
+			 append_index(indexBlock, offset, size, lastKey, beign_timestamp, end_timestamp);
+		}
 }
 
 /* if the begin is true, the method will return the least timestamp of the index block, if false, will get the last*/
