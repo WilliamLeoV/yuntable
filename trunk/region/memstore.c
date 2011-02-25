@@ -17,6 +17,7 @@
 #include "utils.h"
 #include "list.h"
 #include "item.h"
+#include "tablet.h"
 #include "memstore.h"
 #include "malloc2.h"
 #include "log.h"
@@ -101,31 +102,14 @@ public ResultSet* get_all_items_memstore(Memstore *memstore){
         return m_create_result_set(memstore->used_size, memstore->items);
 }
 
-/**
- * Because sometime memstore data structure will be changed during the process, so use the flushed size as the defined mark
- * if the machine powers off during reset, may have chance of losing data, TODO fix it in the later release **/
-public Memstore* reset_memstore(Memstore *memstore, int flushed_size){
-		logg(INFO, "The memstore resetting process for tablet %d has begin.", memstore->tablet_id);
-        int tablet_id = memstore->tablet_id;
-		//check if have new added items has been flushed
-        List* new_added_item_list = list_create();
-        int i = 0;
-        if(memstore->used_size > flushed_size){
+public List* get_left_items(Memstore *memstore, int flushed_size){
+	  	List* left_items = list_create();
+		int i = 0;
+		if(memstore->used_size > flushed_size){
 			for(i=flushed_size-1; i<memstore->used_size; i++)
-				list_append(new_added_item_list, m_clone_item(memstore->items[i]));
-        }
-        //recreate memstore
-        free_item_array(memstore->used_size, memstore->items);
-        frees(2, memstore,memstore->items);
-        memstore = init_memstore(tablet_id);
-        //append the new added_item_list to the memstore
-        Item* item = NULL;
-        while((item = list_next(new_added_item_list)) != NULL){
-        	append_memstore(memstore, item);
-        }
-        list_rewind(new_added_item_list);
-        list_destory(new_added_item_list, only_free_struct);
-        return memstore;
+				list_append(left_items, m_clone_item(memstore->items[i]));
+		}
+		return left_items;
 }
 
 public ResultSet* query_memstore_by_row_key(Memstore* memstore, char* row_key){
@@ -157,6 +141,12 @@ public void sort_memstore(Memstore* memstore){
 	        qsort(memstore->items, new_sorted_size, sizeof(Item *), cmp_item_void);
 	        memstore->sorted_size = new_sorted_size;
 		}
+}
+
+public void free_memstore(Memstore* memstore){
+		//TODO Temporary Blocking
+		//free_item_array(memstore->used_size, memstore->items);
+		frees(2, memstore, memstore->items);
 }
 
 public char* get_memstore_metadata(Memstore* memstore){
