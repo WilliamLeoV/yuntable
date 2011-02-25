@@ -375,6 +375,7 @@ public char* get(Tokens* space_tokens){
 			if(!match(fenn_tokens->tokens[0], ROW_KEY)){
 				msg = ERR_MSG_NO_ROW_KEY;
 			}else{
+				//TODO needs to do performance optimizing
 				char *row_key = m_cpy(fenn_tokens->tokens[1]);
 				resultSet = query_table(cliCacheInst, tableInfo, row_key);
 				free2(row_key);
