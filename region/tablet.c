@@ -176,10 +176,16 @@ public ResultSet* query_tablet_row_key(Tablet *tablet, char* row_key){
 }
 
 public  ResultSet* query_tablet_by_timestamp(Tablet *tablet, long long begin_timestamp, long long end_timestamp){
+
+		//TODO justifies the use of mutex lock
+		pthread_mutex_lock(&tablet->flushing_mutex);
+
 		//query memstore,
 		ResultSet* memstoreSet = query_memstore_by_timestamp(tablet->memstore, begin_timestamp, end_timestamp);
 		//query yfile
 		ResultSet* yfileSet = query_yfiles_by_timestamp(tablet->yfileList, begin_timestamp, end_timestamp);
+
+		pthread_mutex_unlock(&tablet->flushing_mutex);
 
 		ResultSet* combinedSet = m_combine_result_set(memstoreSet, yfileSet);
 
@@ -188,10 +194,13 @@ public  ResultSet* query_tablet_by_timestamp(Tablet *tablet, long long begin_tim
 }
 
 public ResultSet* query_tablet_all(Tablet *tablet){
+	     //TODO justifies the use of mutex lock
+		 pthread_mutex_lock(&tablet->flushing_mutex);
 		 //get all items from memstore
 		 ResultSet* memstoreSet = get_all_items_memstore(tablet->memstore);
 		 //get all items from yfile
 		 ResultSet* yfileSet = query_yfiles_by_timestamp(tablet->yfileList, 0, get_current_time_stamp());
+		 pthread_mutex_unlock(&tablet->flushing_mutex);
 
 		 ResultSet* combinedSet = m_combine_result_set(memstoreSet, yfileSet);
 
@@ -210,7 +219,7 @@ public char* get_metadata_tablet(Tablet *tablet){
 			char* yfile_meta = get_yfile_metadata(yfile);
 			buf_cat(buf, yfile_meta, strlen(yfile_meta));
 			buf_cat(buf, LINE_SEPARATOR_STRING, strlen(LINE_SEPARATOR_STRING));
-			free(yfile_meta);
+			free2(yfile_meta);
 		}
 		char* metadata = m_get_buf_string(buf);
 		destory_buf(buf);
@@ -245,13 +254,29 @@ public void refresh_tablet(Tablet *tablet, int hotnessValue){
 
 			pthread_mutex_lock(&tablet->flushing_mutex);
 
+			/** Because sometime memstore data structure will be changed during the process, so use the flushed size as the defined mark
+			if the machine powers off during reset, may have chance of losing data, TODO fix it in the later release **/
+			List* left_items = get_left_items(tablet->memstore, flushed_size);
+			Memstore* old_memstore = tablet->memstore;
+			tablet->memstore = init_memstore(tablet->id);
+
+			Item* item = NULL;
+			while((item = list_next(left_items)) != NULL){
+				append_memstore(tablet->memstore, item);
+			}
+			list_rewind(left_items);
+			list_destory(left_items, only_free_struct);
+
+			free_memstore(old_memstore);
+
 			list_append(tablet->yfileList, yfile);
-			tablet->memstore = reset_memstore(tablet->memstore, flushed_size);
 
 			pthread_mutex_unlock(&tablet->flushing_mutex);
 
 			tablet->last_flushed_id = tablet->max_item_id;
 		}
+
+
 }
 
 private int get_disk_usage(Tablet *tablet){
@@ -274,6 +299,6 @@ private int get_disk_usage(Tablet *tablet){
 
 /** Not only will calculate the total disk usage, will also update the size at tablet instance **/
 public int get_used_size_tablet(Tablet *tablet){
-	tablet->used_size = get_disk_usage(tablet);
-	return tablet->used_size;
+		tablet->used_size = get_disk_usage(tablet);
+		return tablet->used_size;
 }

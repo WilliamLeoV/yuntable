@@ -39,7 +39,9 @@ public ResultSet* query_memstore_by_row_key(Memstore* memstore, char* row_key);
 
 public ResultSet* query_memstore_by_timestamp(Memstore* memstore, long long begin_timestamp, long long end_timestamp);
 
-public Memstore* reset_memstore(Memstore *memstore, int flushed_size);
+public List* get_left_items(Memstore *memstore, int flushed_size);
+
+public void free_memstore(Memstore* memstore);
 
 public char* get_memstore_metadata(Memstore* memstore);
 
