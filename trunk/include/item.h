@@ -79,6 +79,8 @@ public Key* get_last_key(ResultSet* resultSet);
 
 public Key* get_first_key(ResultSet* resultSet);
 
+public boolean validate_item(Item* item);
+
 public int cmp_item_void(const void* item1_void, const void* item2_void);
 
 public int cmp_item(Item* item1, Item* item2);

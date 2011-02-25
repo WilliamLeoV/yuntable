@@ -184,7 +184,12 @@ public Buf* result_set_to_byte(ResultSet* resultSet){
         buf_cat(buf, &resultSet->size, sizeof(resultSet->size));
         int i=0;
         for(i=0; i<resultSet->size; i++){
-			Buf* item_buf = item_to_byte(resultSet->items[i]);
+        	Item* item = resultSet->items[i];
+        	//TODO this may contains further error
+        	if(!validate_item(item)){
+        		continue;
+        	}
+			Buf* item_buf = item_to_byte(item);
 			buf_combine(buf, item_buf);
 
 			destory_buf(item_buf);
@@ -261,6 +266,18 @@ public int cmp_item_void(const void* item1_void, const void* item2_void){
 		  Item* const item2 = (Item*)(*(long*)item2_void);
 		  return cmp_item(item1, item2);
 }
+
+public boolean validate_item(Item* item){
+		if(item == NULL){
+			return false;
+		}else if(item->key == NULL){
+			return false;
+		}else if(item->key->row_key == NULL){
+			return false;
+		}
+		return true;
+}
+
 
 /** Will item base on row key, timestamp and column name, will return result if either one of them are not match
  *  If the method return zero, means the two items are the same
@@ -448,13 +465,21 @@ public ResultSet* cleansing(ResultSet* set){
 		int i;
 		for(i=0; i<set->size; i++){
 			Item* item = set->items[i];
+			//validate item effectiveness
+			if(!validate_item(item)){
+				free_item(item);
+				set->items[i] = NULL;
+				continue;
+			}
 			//check if the item is the row key deletion mark,
 			//which will delete the row key's all items before this item's timestamp
 			if(item->val_len == 0 && item->key->column_name_len ==0){
 				int j=0;//The reverse index, the first item gonna be the item before current deletion mark
 				for(j=i-1; j>=0; j--){
 					Item *prevItem = set->items[j];
-					if(prevItem == NULL) continue;
+					if(prevItem == NULL){
+						continue;
+					}
 					//The procedure will break if the prev item was not belong to this key
 					if(strcmp(item->key->row_key, prevItem->key->row_key) != 0){
 						break;
