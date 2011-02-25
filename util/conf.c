@@ -111,6 +111,7 @@ public void flush_key_value(char* file_path, char* key, char* value){
         char* content = m_get_buf_string(buf);
         create_or_rewrite_file(file_path, content);
 
+        list_destory(lines, just_free);
         frees(2, new_line, content);
         destory_buf(buf);
 }
