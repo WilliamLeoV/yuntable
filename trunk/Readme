@@ -19,7 +19,7 @@
 ================================================================================
 
 
-				YunTable v0.8 Readme
+				YunTable v0.9 Readme
 
 YunTable is a distributed key-value store that written in C, and it can be further optimized base on 
 Cloud Computing needs.
@@ -41,3 +41,23 @@ get table:people row:me
 show table:people
 show master
 quit
+
+
+0.9 Patch Notes 
+*Fix a cirtial memory freeing bug at cli.
+*Fix a timestamp writing bug at conf.
+*Fix the ISSUE 4, hit SIGSEGV issue in 64 bit cause by log.c.
+*Fix the ISSUE 12, print the allocation size when OOM.
+*Add the version print feature.
+*Add show master cmd.
+*Fix a macro definition bug about timestamp at region.
+*Add a long-term testing mode.
+*Fix a Item bug, should use long long rather than int.
+*Fix a bug on array limit and add validate item at yfile.
+*Fix a memory leak bug at conf.
+*Add Validate Item method for Item checking.
+
+
+
+
+
