@@ -43,7 +43,7 @@
  ***/
 
 /** version part **/
-#define VERSION "0.9RC"
+#define VERSION "0.9"
 
 /**  core part   **/
 
